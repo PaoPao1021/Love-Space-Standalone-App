@@ -1,0 +1,7 @@
+{
+  "version": "1.0.0",
+  "buildNumber": 1,
+  "downloadUrl": "/releases/lovespace-1.0.0.apk",
+  "sha256": "REPLACE_AFTER_SIGNED_BUILD",
+  "notes": "首个双端核心闭环版本"
+}

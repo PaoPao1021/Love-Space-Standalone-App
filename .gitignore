@@ -1,0 +1,5 @@
+deploy/.env.production
+app/android/key.properties
+*.jks
+*.keystore
+app/web/releases/*.apk

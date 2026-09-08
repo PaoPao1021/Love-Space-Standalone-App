@@ -1,0 +1,21 @@
+{$LOVESPACE_DOMAIN} {
+    encode zstd gzip
+
+    @api path /api/* /actuator/health
+    reverse_proxy @api server:8080
+
+    header /push-sw.js Cache-Control "no-cache, no-store, must-revalidate"
+    header /flutter_bootstrap.js Cache-Control "no-cache"
+    header /releases/* Cache-Control "no-cache"
+
+    root * /srv/web
+    try_files {path} {path}/ /index.html
+    file_server
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    }
+}

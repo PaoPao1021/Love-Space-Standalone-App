@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: lovespace-server
+  profiles:
+    default: dev
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/lovespace?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
+    username: ${DB_USERNAME:lovespace}
+    password: ${DB_PASSWORD:lovespace-local}
+    hikari:
+      connection-init-sql: "SET time_zone = '+00:00'"
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 11MB
+
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+lovespace:
+  auth:
+    jwt-secret: ${JWT_SECRET:change-this-local-jwt-secret-with-at-least-32-bytes}
+    token-ttl: 15m
+    refresh-token-ttl: 30d
+    dev-secret: ${DEV_AUTH_SECRET:local-only}
+    refresh-cookie-secure: ${REFRESH_COOKIE_SECURE:false}
+    refresh-cookie-same-site: ${REFRESH_COOKIE_SAME_SITE:Lax}
+  cors:
+    allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*}
+  wechat:
+    app-id: ${WX_APP_ID:}
+    app-secret: ${WX_APP_SECRET:}
+    order-template-id: ${ORDER_TEMPLATE_ID:}
+    anniversary-template-id: ${ANNIVERSARY_TEMPLATE_ID:}
+    integrations-enabled: ${WECHAT_INTEGRATIONS_ENABLED:false}
+  storage:
+    internal-endpoint: ${S3_INTERNAL_ENDPOINT:${S3_ENDPOINT:http://localhost:9090}}
+    public-endpoint: ${S3_PUBLIC_ENDPOINT:${S3_ENDPOINT:http://localhost:9090}}
+    region: ${S3_REGION:us-east-1}
+    bucket: ${S3_BUCKET:lovespace}
+    access-key: ${S3_ACCESS_KEY:local}
+    secret-key: ${S3_SECRET_KEY:local}
+    signed-url-ttl: 30m
+    path-style-access-enabled: ${S3_PATH_STYLE_ACCESS_ENABLED:true}
+    chunked-encoding-enabled: ${S3_CHUNKED_ENCODING_ENABLED:true}
+  push:
+    delivery-enabled: ${PUSH_DELIVERY_ENABLED:false}
+    worker-delay: ${PUSH_WORKER_DELAY:15s}
+    web:
+      vapid-public-key: ${VAPID_PUBLIC_KEY:}
+      vapid-private-key: ${VAPID_PRIVATE_KEY:}
+      subject: ${VAPID_SUBJECT:mailto:admin@localhost}
+    getui:
+      app-id: ${GETUI_APP_ID:}
+      app-key: ${GETUI_APP_KEY:}
+      master-secret: ${GETUI_MASTER_SECRET:}
+
+logging:
+  level:
+    com.lovespace: INFO

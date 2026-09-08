@@ -1,0 +1,4 @@
+storeFile=C:/secure/lovespace-release.jks
+storePassword=replace-me
+keyAlias=lovespace
+keyPassword=replace-me

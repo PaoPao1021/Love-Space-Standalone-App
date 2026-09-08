@@ -1,0 +1,42 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+server:
+  address: ${SERVER_ADDRESS:0.0.0.0}
+
+lovespace:
+  auth:
+    jwt-secret: ${JWT_SECRET}
+    token-ttl: ${ACCESS_TOKEN_TTL:15m}
+    refresh-token-ttl: ${REFRESH_TOKEN_TTL:30d}
+    refresh-cookie-secure: true
+    refresh-cookie-same-site: Strict
+  cors:
+    allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:}
+  wechat:
+    integrations-enabled: false
+  storage:
+    internal-endpoint: ${S3_INTERNAL_ENDPOINT}
+    public-endpoint: ${S3_PUBLIC_ENDPOINT}
+    region: ${S3_REGION}
+    bucket: ${S3_BUCKET}
+    access-key: ${S3_ACCESS_KEY}
+    secret-key: ${S3_SECRET_KEY}
+    path-style-access-enabled: ${S3_PATH_STYLE_ACCESS_ENABLED:false}
+    chunked-encoding-enabled: ${S3_CHUNKED_ENCODING_ENABLED:false}
+  push:
+    delivery-enabled: ${PUSH_DELIVERY_ENABLED:true}
+    web:
+      vapid-public-key: ${VAPID_PUBLIC_KEY}
+      vapid-private-key: ${VAPID_PRIVATE_KEY}
+      subject: ${VAPID_SUBJECT}
+    getui:
+      app-id: ${GETUI_APP_ID}
+      app-key: ${GETUI_APP_KEY}
+      master-secret: ${GETUI_MASTER_SECRET}
