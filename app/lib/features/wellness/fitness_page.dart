@@ -34,19 +34,6 @@ class _FitnessPageState extends State<FitnessPage> {
     }
   }
 
-  Future<void> _checkIn(FitnessDashboard dashboard) async {
-    final changed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => _CheckinEditor(
-        repository: widget.repository,
-        existing: dashboard.todayCheckin,
-      ),
-    );
-    if (changed == true) _reload();
-  }
-
   Future<void> _editGoal(FitnessDashboard dashboard) async {
     final changed = await showModalBottomSheet<bool>(
       context: context,
@@ -60,16 +47,7 @@ class _FitnessPageState extends State<FitnessPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('一起变好'),
-      actions: [
-        IconButton(
-          tooltip: '查看健康周报',
-          onPressed: () => context.push('/fitness-report'),
-          icon: const Icon(Icons.assessment_outlined),
-        ),
-      ],
-    ),
+    appBar: AppBar(toolbarHeight: 0),
     body: SafeArea(
       child: FutureBuilder<FitnessDashboard>(
         future: _dashboard,
@@ -92,7 +70,7 @@ class _FitnessPageState extends State<FitnessPage> {
               await _dashboard;
             },
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
+              padding: const EdgeInsets.fromLTRB(28, 24, 28, 32),
               children: [
                 Center(
                   child: ConstrainedBox(
@@ -100,18 +78,66 @@ class _FitnessPageState extends State<FitnessPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'BETTER TOGETHER',
+                                    style: TextStyle(
+                                      letterSpacing: 2,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF698471),
+                                    ),
+                                  ),
+                                  SizedBox(height: 5),
+                                  Text(
+                                    '一起变好',
+                                    style: TextStyle(
+                                      fontSize: 30,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF26312B),
+                                    ),
+                                  ),
+                                  SizedBox(height: 3),
+                                  Text(
+                                    '奖励坚持，不比较体重',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Color(0xFF929D96),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => context.push('/fitness-report'),
+                              child: const Text('周报 ↗'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
                         Card(
-                          color: Theme.of(context).colorScheme.primaryContainer,
+                          color: const Color(0xFF2B4337),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
                           child: Padding(
                             padding: const EdgeInsets.all(20),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
+                                const Text(
                                   '本周双人进度',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleMedium,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                                 const SizedBox(height: 10),
                                 Text(
@@ -119,17 +145,103 @@ class _FitnessPageState extends State<FitnessPage> {
                                   style: Theme.of(context)
                                       .textTheme
                                       .displaySmall
-                                      ?.copyWith(fontWeight: FontWeight.w900),
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.white,
+                                      ),
                                 ),
                                 const SizedBox(height: 10),
                                 LinearProgressIndicator(
                                   value: dashboard.teamProgress / 100,
+                                  color: const Color(0xFF9CC9AA),
+                                  backgroundColor: Colors.white24,
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  '共同进度，不做输赢排名',
+                                  style: TextStyle(
+                                    color: Color(0xB3FFFFFF),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 18),
+                                const Divider(color: Color(0x24FFFFFF)),
+                                const SizedBox(height: 10),
+                                _HeroMember(
+                                  name: '我',
+                                  stats: dashboard.myStats,
+                                ),
+                                const SizedBox(height: 8),
+                                _HeroMember(
+                                  name: 'TA',
+                                  stats: dashboard.partnerStats,
+                                  awaiting: dashboard.partnerStats == null,
                                 ),
                               ],
                             ),
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 22),
+                        _SectionHead(
+                          kicker: 'MY PLAN',
+                          title: '我的健康目标',
+                          action: dashboard.goalConfigured ? '调整' : '设置',
+                          onAction: () => _editGoal(dashboard),
+                        ),
+                        Card(
+                          elevation: 0,
+                          color: const Color(0xFFFFFFFF),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: InkWell(
+                            onTap: () => _editGoal(dashboard),
+                            borderRadius: BorderRadius.circular(16),
+                            child: Padding(
+                              padding: const EdgeInsets.all(18),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFE6EFE8),
+                                      borderRadius: BorderRadius.circular(99),
+                                    ),
+                                    child: Text(_goalLabel(dashboard.goalType)),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Text(
+                                      '${dashboard.weeklyWorkouts} 次 / 周运动\n${dashboard.dailySteps} 步 / 日',
+                                      style: const TextStyle(
+                                        height: 1.7,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    _privacyLabel(dashboard.privacy),
+                                    style: const TextStyle(
+                                      color: Color(0xFF929D96),
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                        _SectionHead(
+                          kicker: 'TODAY',
+                          title: '今天的记录',
+                          action: dashboard.partnerCheckedIn
+                              ? 'TA 已打卡'
+                              : '等待 TA',
+                        ),
                         LayoutBuilder(
                           builder: (context, constraints) {
                             final cards = [
@@ -171,13 +283,27 @@ class _FitnessPageState extends State<FitnessPage> {
                             );
                           },
                         ),
+                        if (dashboard.todayCheckin != null) ...[
+                          const SizedBox(height: 4),
+                          _TodaySnapshot(checkin: dashboard.todayCheckin!),
+                        ],
                         const SizedBox(height: 6),
-                        FilledButton.icon(
-                          onPressed: () => _checkIn(dashboard),
-                          icon: const Icon(Icons.add_chart_rounded),
-                          label: Text(
-                            dashboard.todayCheckin == null ? '记录今天' : '更新今天的记录',
-                          ),
+                        _InlineCheckin(
+                          repository: widget.repository,
+                          existing: dashboard.todayCheckin,
+                          onSaved: _reload,
+                        ),
+                        const SizedBox(height: 22),
+                        _SectionHead(
+                          kicker: 'PARTNER TODAY',
+                          title: 'TA 今天的运动',
+                          action: dashboard.partnerCheckedIn
+                              ? 'TA 已打卡'
+                              : '等待 TA',
+                        ),
+                        _PartnerToday(
+                          checkin: dashboard.partnerToday,
+                          checkedIn: dashboard.partnerCheckedIn,
                         ),
                         const SizedBox(height: 10),
                         OutlinedButton.icon(
@@ -187,12 +313,13 @@ class _FitnessPageState extends State<FitnessPage> {
                             dashboard.goalConfigured ? '调整我的目标' : '设置我的健康目标',
                           ),
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 22),
                         _NutritionCard(plan: dashboard.nutritionPlan),
                         const SizedBox(height: 24),
-                        Text(
-                          '双人挑战',
-                          style: Theme.of(context).textTheme.titleLarge,
+                        _SectionHead(
+                          kicker: 'CHALLENGES',
+                          title: '双人挑战',
+                          action: '发起挑战',
                         ),
                         const SizedBox(height: 10),
                         if (dashboard.challenges.isEmpty)
@@ -233,12 +360,75 @@ class _FitnessPageState extends State<FitnessPage> {
   );
 }
 
+String _goalLabel(String value) => switch (value) {
+  'fat-loss' => '减脂',
+  'muscle' => '增肌',
+  _ => '塑形',
+};
+
+String _privacyLabel(String value) => switch (value) {
+  'shared' => '双方可见',
+  'private' => '仅自己可见',
+  _ => '仅分享趋势',
+};
+
+class _SectionHead extends StatelessWidget {
+  const _SectionHead({
+    required this.kicker,
+    required this.title,
+    required this.action,
+    this.onAction,
+  });
+  final String kicker;
+  final String title;
+  final String action;
+  final VoidCallback? onAction;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                kicker,
+                style: const TextStyle(
+                  letterSpacing: 2,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF698471),
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF26312B),
+                ),
+              ),
+            ],
+          ),
+        ),
+        TextButton(onPressed: onAction, child: Text(action)),
+      ],
+    ),
+  );
+}
+
 class _NutritionCard extends StatelessWidget {
   const _NutritionCard({required this.plan});
   final NutritionPlan plan;
 
   @override
   Widget build(BuildContext context) => Card(
+    elevation: 0,
+    color: const Color(0xFFFFFFFF),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     child: Padding(
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -255,6 +445,14 @@ class _NutritionCard extends StatelessWidget {
           if (!plan.ready)
             Text(plan.message.isEmpty ? '填写当前体重后生成个性化参考。' : plan.message)
           else ...[
+            if (plan.intensity.isNotEmpty)
+              Text(
+                plan.intensity,
+                style: const TextStyle(
+                  color: Color(0xff698471),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             Text(
               '${plan.calories} 千卡',
               style: Theme.of(
@@ -276,6 +474,43 @@ class _NutritionCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(plan.summary),
             ],
+            if (plan.bmr != null || plan.bmrMessage.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xfff4f6f2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      plan.bmr == null
+                          ? '完成基础代谢计算'
+                          : '基础代谢估算 ${plan.bmr} 大卡 / 日',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    Text(
+                      plan.bmr == null ? plan.bmrMessage : plan.bmrNote,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xff77837b),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (plan.foodGroups.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              const Text(
+                '怎么吃更容易做到',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              ...plan.foodGroups.map((group) => _FoodGroupRow(group: group)),
+            ],
             if (plan.disclaimer.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
@@ -290,12 +525,92 @@ class _NutritionCard extends StatelessWidget {
   );
 }
 
+class _PartnerToday extends StatelessWidget {
+  const _PartnerToday({this.checkin, required this.checkedIn});
+  final DailyCheckin? checkin;
+  final bool checkedIn;
+  @override
+  Widget build(BuildContext context) {
+    final value = checkin;
+    if (value == null) {
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(checkedIn ? 'TA 今天记录了休息日' : 'TA 今天还没有保存运动记录'),
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${value.minutes} 分钟 · ${value.calories} 大卡',
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          if (value.workouts.isEmpty)
+            const Text('TA 今天记录了休息日')
+          else
+            ...value.workouts.map(
+              (w) => Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  '${w.type} · ${w.startTime} · ${w.minutes} 分钟 · ${w.calories} 大卡',
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FoodGroupRow extends StatelessWidget {
+  const _FoodGroupRow({required this.group});
+  final NutritionFoodGroup group;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xfff4f6f2),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            group.label,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          Text(group.foods, style: const TextStyle(fontSize: 12)),
+          Text(
+            group.note,
+            style: const TextStyle(fontSize: 11, color: Color(0xff77837b)),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _ChallengeCard extends StatelessWidget {
   const _ChallengeCard({required this.challenge});
   final FitnessChallenge challenge;
 
   @override
   Widget build(BuildContext context) => Card(
+    elevation: 0,
+    color: const Color(0xFFFFFFFF),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     child: Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -338,6 +653,9 @@ class _StatsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final value = stats;
     return Card(
+      elevation: 0,
+      color: const Color(0xFFFFFFFF),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -377,18 +695,91 @@ class _StatsCard extends StatelessWidget {
   }
 }
 
-class _CheckinEditor extends StatefulWidget {
-  const _CheckinEditor({required this.repository, this.existing});
-  final WellnessRepository repository;
-  final DailyCheckin? existing;
+class _HeroMember extends StatelessWidget {
+  const _HeroMember({
+    required this.name,
+    required this.stats,
+    this.awaiting = false,
+  });
+  final String name;
+  final FitnessStats? stats;
+  final bool awaiting;
   @override
-  State<_CheckinEditor> createState() => _CheckinEditorState();
+  Widget build(BuildContext context) => Row(
+    children: [
+      CircleAvatar(
+        radius: 14,
+        backgroundColor: const Color(0x22FFFFFF),
+        child: Text(
+          name == '我' ? '我' : 'TA',
+          style: const TextStyle(color: Colors.white, fontSize: 11),
+        ),
+      ),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Text(
+          awaiting
+              ? '等待 TA 加入'
+              : '$name · ${stats!.workouts} 次 · ${stats!.minutes} 分钟 · ${stats!.progress}%',
+          style: const TextStyle(color: Color(0xCCFFFFFF), fontSize: 12),
+        ),
+      ),
+    ],
+  );
 }
 
-class _CheckinEditorState extends State<_CheckinEditor> {
-  late final _minutes = TextEditingController(
-    text: widget.existing?.minutes.toString() ?? '0',
+class _TodaySnapshot extends StatelessWidget {
+  const _TodaySnapshot({required this.checkin});
+  final DailyCheckin checkin;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: const Color(0xffeef4ef),
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '我的今日记录',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: Color(0xff375344),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '${checkin.workoutType} · ${checkin.minutes} 分钟  |  ${checkin.steps} 步 · ${checkin.water} 杯水 · ${checkin.sleep} 小时睡眠',
+          style: const TextStyle(fontSize: 12, color: Color(0xff5d7063)),
+        ),
+        Text(
+          checkin.healthyMeal ? '今天吃得符合计划' : '今天按真实情况记录',
+          style: const TextStyle(fontSize: 12, color: Color(0xff5d7063)),
+        ),
+      ],
+    ),
   );
+}
+
+class _InlineCheckin extends StatefulWidget {
+  const _InlineCheckin({
+    required this.repository,
+    required this.onSaved,
+    this.existing,
+  });
+  final WellnessRepository repository;
+  final DailyCheckin? existing;
+  final VoidCallback onSaved;
+  @override
+  State<_InlineCheckin> createState() => _InlineCheckinState();
+}
+
+class _InlineCheckinState extends State<_InlineCheckin> {
+  late final List<_WorkoutDraft> _workouts =
+      (widget.existing?.workouts ?? const [])
+          .map(_WorkoutDraft.fromEntry)
+          .toList();
   late final _steps = TextEditingController(
     text: widget.existing?.steps.toString() ?? '0',
   );
@@ -401,25 +792,24 @@ class _CheckinEditorState extends State<_CheckinEditor> {
   late final _weight = TextEditingController(
     text: widget.existing?.weight?.toString() ?? '',
   );
-  late String _type = widget.existing?.workoutType ?? 'rest';
   late bool _healthyMeal = widget.existing?.healthyMeal ?? false;
   bool _saving = false;
-
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      final minutes = int.tryParse(_minutes.text) ?? 0;
-      await widget.repository.checkIn(
-        workoutType: minutes > 0 ? _type : 'rest',
-        minutes: minutes,
-        calories: minutes > 0 ? minutes * 5 : 0,
+      await widget.repository.checkInWorkouts(
+        workouts: _workouts.map((item) => item.toEntry()).toList(),
         steps: int.tryParse(_steps.text) ?? 0,
         water: int.tryParse(_water.text) ?? 0,
         sleep: double.tryParse(_sleep.text) ?? 0,
         healthyMeal: _healthyMeal,
         weight: double.tryParse(_weight.text),
       );
-      if (mounted) Navigator.pop(context, true);
+      if (!mounted) return;
+      widget.onSaved();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('今日记录已保存')));
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -433,7 +823,9 @@ class _CheckinEditorState extends State<_CheckinEditor> {
 
   @override
   void dispose() {
-    _minutes.dispose();
+    for (final workout in _workouts) {
+      workout.dispose();
+    }
     _steps.dispose();
     _water.dispose();
     _sleep.dispose();
@@ -442,62 +834,104 @@ class _CheckinEditorState extends State<_CheckinEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.fromLTRB(
-      20,
-      12,
-      20,
-      MediaQuery.viewInsetsOf(context).bottom + 20,
-    ),
-    child: SingleChildScrollView(
+  Widget build(BuildContext context) => Card(
+    elevation: 0,
+    color: Colors.white,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    child: Padding(
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('今天的健康记录', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 18),
-          DropdownButtonFormField<String>(
-            initialValue: _type,
-            decoration: const InputDecoration(labelText: '主要运动'),
-            items: const [
-              DropdownMenuItem(value: 'rest', child: Text('休息日')),
-              DropdownMenuItem(value: 'walk', child: Text('步行')),
-              DropdownMenuItem(value: 'run', child: Text('跑步')),
-              DropdownMenuItem(value: 'strength', child: Text('力量训练')),
-              DropdownMenuItem(value: 'cycle', child: Text('骑行')),
-              DropdownMenuItem(value: 'yoga', child: Text('瑜伽')),
-              DropdownMenuItem(value: 'swim', child: Text('游泳')),
-              DropdownMenuItem(value: 'other', child: Text('其他运动')),
+          const Text(
+            '运动记录',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 3),
+          const Text(
+            '记录真实状态，休息也是计划的一部分。',
+            style: TextStyle(fontSize: 12, color: Color(0xff77837b)),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  '训练记录',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: _workouts.length >= 12
+                    ? null
+                    : () => setState(
+                        () => _workouts.add(_WorkoutDraft(type: 'walk')),
+                      ),
+                icon: const Icon(Icons.add, size: 17),
+                label: const Text('添加'),
+              ),
             ],
-            onChanged: (value) => _type = value ?? 'rest',
           ),
-          const SizedBox(height: 10),
-          _numberField(_minutes, '运动分钟', 600),
-          const SizedBox(height: 10),
-          _numberField(_steps, '今日步数', 100000),
-          const SizedBox(height: 10),
-          _numberField(_water, '饮水杯数', 20),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _sleep,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: '睡眠小时'),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _weight,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: '今日体重（可选）',
-              suffixText: 'kg',
+          if (_workouts.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Text(
+                '今天暂未添加运动，休息也是计划的一部分。',
+                style: TextStyle(color: Color(0xff77837b), fontSize: 12),
+              ),
             ),
+          ..._workouts.asMap().entries.map(
+            (entry) => _WorkoutRow(
+              draft: entry.value,
+              index: entry.key,
+              onChanged: () => setState(() {}),
+              onRemove: () => setState(() {
+                entry.value.dispose();
+                _workouts.removeAt(entry.key);
+              }),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: _number(_steps, '今日步数')),
+              const SizedBox(width: 10),
+              Expanded(child: _number(_water, '饮水杯数')),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _sleep,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(labelText: '睡眠小时'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: _weight,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: '体重（可选）',
+                    suffixText: 'kg',
+                  ),
+                ),
+              ),
+            ],
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             value: _healthyMeal,
             onChanged: (value) => setState(() => _healthyMeal = value),
-            title: const Text('今天吃得比较健康'),
+            title: const Text('今天吃得符合计划'),
           ),
-          const SizedBox(height: 14),
           FilledButton(
             onPressed: _saving ? null : _save,
             child: Text(_saving ? '正在保存…' : '保存今日记录'),
@@ -506,15 +940,158 @@ class _CheckinEditorState extends State<_CheckinEditor> {
       ),
     ),
   );
+  static Widget _number(TextEditingController controller, String label) =>
+      TextField(
+        controller: controller,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(labelText: label),
+      );
+}
 
-  static Widget _numberField(
-    TextEditingController controller,
-    String label,
-    int maximum,
-  ) => TextField(
-    controller: controller,
-    keyboardType: TextInputType.number,
-    decoration: InputDecoration(labelText: label, helperText: '0–$maximum'),
+class _WorkoutDraft {
+  _WorkoutDraft({
+    required this.type,
+    String? id,
+    String? startTime,
+    String minutes = '',
+    String calories = '',
+  }) : id = id ?? 'workout-${DateTime.now().microsecondsSinceEpoch}',
+       startTime = TextEditingController(text: startTime ?? _nowTime()),
+       minutes = TextEditingController(text: minutes),
+       calories = TextEditingController(text: calories);
+  _WorkoutDraft.fromEntry(WorkoutEntry entry)
+    : this(
+        id: entry.id,
+        type: entry.type,
+        startTime: entry.startTime,
+        minutes: '${entry.minutes}',
+        calories: '${entry.calories}',
+      );
+  final String id;
+  String type;
+  final TextEditingController startTime;
+  final TextEditingController minutes;
+  final TextEditingController calories;
+  WorkoutEntry toEntry() => WorkoutEntry(
+    id: id,
+    type: type,
+    startTime: startTime.text.trim(),
+    minutes: int.tryParse(minutes.text) ?? 0,
+    calories: int.tryParse(calories.text) ?? 0,
+  );
+  void dispose() {
+    startTime.dispose();
+    minutes.dispose();
+    calories.dispose();
+  }
+
+  static String _nowTime() {
+    final now = DateTime.now();
+    return '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _WorkoutRow extends StatelessWidget {
+  const _WorkoutRow({
+    required this.draft,
+    required this.index,
+    required this.onChanged,
+    required this.onRemove,
+  });
+  final _WorkoutDraft draft;
+  final int index;
+  final VoidCallback onChanged;
+  final VoidCallback onRemove;
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: const Color(0xfff4f6f2),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      children: [
+        Row(
+          children: [
+            Text(
+              '${index + 1}',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Color(0xff698471),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: draft.type,
+                isDense: true,
+                decoration: const InputDecoration(labelText: '运动类型'),
+                items: const [
+                  DropdownMenuItem(value: 'walk', child: Text('步行')),
+                  DropdownMenuItem(value: 'run', child: Text('跑步')),
+                  DropdownMenuItem(value: 'strength', child: Text('力量训练')),
+                  DropdownMenuItem(value: 'cycle', child: Text('骑行')),
+                  DropdownMenuItem(value: 'yoga', child: Text('瑜伽')),
+                  DropdownMenuItem(value: 'swim', child: Text('游泳')),
+                  DropdownMenuItem(value: 'other', child: Text('其他运动')),
+                ],
+                onChanged: (v) {
+                  draft.type = v ?? 'walk';
+                  onChanged();
+                },
+              ),
+            ),
+            IconButton(
+              tooltip: '删除训练',
+              onPressed: onRemove,
+              icon: const Icon(Icons.close, size: 18),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: draft.startTime,
+                readOnly: true,
+                onTap: () async {
+                  final time = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.now(),
+                  );
+                  if (time != null) {
+                    draft.startTime.text =
+                        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+                    onChanged();
+                  }
+                },
+                decoration: const InputDecoration(labelText: '开始时间'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: draft.minutes,
+                onChanged: (_) => onChanged(),
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: '分钟'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: draft.calories,
+                onChanged: (_) => onChanged(),
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: '大卡'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
   );
 }
 

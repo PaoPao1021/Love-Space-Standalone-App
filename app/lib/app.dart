@@ -12,6 +12,9 @@ import 'features/album/album_detail_page.dart';
 import 'features/album/album_page.dart';
 import 'features/album/album_repository.dart';
 import 'features/auth/login_page.dart';
+import 'features/auth/connect_page.dart';
+import 'features/settings/settings_page.dart';
+import 'theme/background_preferences.dart';
 import 'features/home/home_page.dart';
 import 'features/core_loop/core_loop_repository.dart';
 import 'features/daily_question/daily_question_page.dart';
@@ -67,6 +70,7 @@ class LoveSpaceApp extends StatefulWidget {
 }
 
 class _LoveSpaceAppState extends State<LoveSpaceApp> {
+  final _background = BackgroundPreferences();
   StreamSubscription<String>? _pushDeepLinkSubscription;
 
   late final GoRouter _router = GoRouter(
@@ -81,10 +85,29 @@ class _LoveSpaceAppState extends State<LoveSpaceApp> {
       if (status == AuthStatus.unauthenticated) {
         return path == '/login' ? null : '/login';
       }
+      if (widget.authController.user?.coupleId.isEmpty == true) {
+        return path == '/connect' ? null : '/connect';
+      }
+      if (path == '/connect') return '/home';
       if (path == '/login' || path == '/splash') return '/home';
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/connect',
+        builder: (_, _) => ConnectPage(
+          auth: widget.authController,
+          repository: widget.coreLoopRepository,
+        ),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (_, _) => SettingsPage(
+          auth: widget.authController,
+          repository: widget.coreLoopRepository,
+          background: _background,
+        ),
+      ),
       GoRoute(path: '/splash', builder: (_, _) => const SplashPage()),
       GoRoute(
         path: '/login',
@@ -119,15 +142,17 @@ class _LoveSpaceAppState extends State<LoveSpaceApp> {
           repository: widget.albumRepository,
           albumId: state.pathParameters['albumId']!,
           albumName: state.uri.queryParameters['name'] ?? '相册',
+          uploadOnOpen: state.uri.queryParameters['upload'] == '1',
         ),
       ),
       GoRoute(
         path: '/moments',
-        builder: (_, _) => AppShell(
+        builder: (_, state) => AppShell(
           currentIndex: 2,
           child: MomentsPage(
             repository: widget.coreLoopRepository,
             cache: widget.accountCache,
+            createOnOpen: state.uri.queryParameters['create'] == '1',
           ),
         ),
       ),
@@ -257,7 +282,7 @@ class _LoveSpaceAppState extends State<LoveSpaceApp> {
       GoRoute(
         path: '/profile',
         builder: (_, _) => AppShell(
-          currentIndex: 4,
+          currentIndex: 3,
           child: ProfilePage(
             user: widget.authController.user!,
             authController: widget.authController,
@@ -273,10 +298,18 @@ class _LoveSpaceAppState extends State<LoveSpaceApp> {
   @override
   void initState() {
     super.initState();
+    widget.authController.addListener(_syncAppearance);
+    _syncAppearance();
     _pushDeepLinkSubscription = widget.pushClient.deepLinks.listen(
       _openPushDeepLink,
     );
     widget.pushClient.startIfConsented();
+  }
+
+  void _syncAppearance() {
+    final account = widget.authController.user?.id ?? '';
+    widget.accountCache.scopeTo(account);
+    _background.scopeTo(account, widget.accountCache);
   }
 
   void _openPushDeepLink(String value) {
@@ -307,6 +340,8 @@ class _LoveSpaceAppState extends State<LoveSpaceApp> {
 
   @override
   void dispose() {
+    widget.authController.removeListener(_syncAppearance);
+    _background.dispose();
     _pushDeepLinkSubscription?.cancel();
     _router.dispose();
     widget.authController.dispose();
@@ -317,13 +352,35 @@ class _LoveSpaceAppState extends State<LoveSpaceApp> {
   Widget build(BuildContext context) {
     final user = widget.authController.user;
     if (user != null) widget.accountCache.scopeTo(user.id);
-    return MaterialApp.router(
-      title: 'LoveSpace',
-      debugShowCheckedModeBanner: false,
-      theme: LoveSpaceTheme.light,
-      darkTheme: LoveSpaceTheme.dark,
-      themeMode: ThemeMode.system,
-      routerConfig: _router,
+    return AnimatedBuilder(
+      animation: _background,
+      builder: (_, _) => MaterialApp.router(
+        title: 'LoveSpace',
+        debugShowCheckedModeBanner: false,
+        theme: _background.image == null
+            ? LoveSpaceTheme.light
+            : LoveSpaceTheme.light.copyWith(
+                scaffoldBackgroundColor: Colors.transparent,
+              ),
+        darkTheme: LoveSpaceTheme.dark,
+        // The reference mini-program has a fixed cream canvas and light cards.
+        themeMode: ThemeMode.light,
+        routerConfig: _router,
+        builder: (context, child) => DecoratedBox(
+          decoration: const BoxDecoration(color: LoveSpaceColors.blush),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (_background.image != null)
+                Opacity(
+                  opacity: _background.opacity,
+                  child: Image.memory(_background.image!, fit: BoxFit.cover),
+                ),
+              child!,
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

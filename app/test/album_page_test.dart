@@ -40,10 +40,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('我们的相册'), findsOneWidget);
     expect(find.text('第一次旅行'), findsOneWidget);
-    expect(find.text('8 张照片'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, '新建相册'), findsOneWidget);
+    expect(find.text('8张'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, '新建相册'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, '上传照片'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

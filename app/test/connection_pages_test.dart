@@ -5,6 +5,7 @@ import 'package:lovespace_app/core/storage/account_cache.dart';
 import 'package:lovespace_app/core/storage/token_store.dart';
 import 'package:lovespace_app/features/core_loop/core_loop.dart';
 import 'package:lovespace_app/features/core_loop/core_loop_repository.dart';
+import 'package:lovespace_app/features/mood/mood_page.dart';
 import 'package:lovespace_app/features/quiz/quiz_page.dart';
 import 'package:lovespace_app/features/thanks/thanks_page.dart';
 import 'package:lovespace_app/features/timeline/timeline_page.dart';
@@ -33,7 +34,7 @@ void main() {
     );
 
     expect(find.text('谢谢你在我加班时留了晚饭'), findsOneWidget);
-    expect(find.text('记录感谢'), findsOneWidget);
+    expect(find.byTooltip('记录感谢'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -48,9 +49,33 @@ void main() {
 
     expect(find.text('2026 年 9 月'), findsOneWidget);
     expect(find.text('海边散步'), findsOneWidget);
-    expect(find.text('记录此刻'), findsOneWidget);
+    expect(find.byTooltip('记录此刻'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'mood page shows the source partner-mood panel and all ten choices',
+    (tester) async {
+      await _phone(tester, MoodPage(repository: _ConnectionRepository()));
+
+      expect(find.text('😊'), findsOneWidget);
+      expect(find.text('😤'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('TA今天的心情'),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('TA今天的心情'), findsOneWidget);
+      expect(find.text('甜蜜'), findsAtLeastNWidgets(1));
+      await tester.scrollUntilVisible(
+        find.text('心情日历'),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('心情日历'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 Future<void> _phone(
@@ -119,4 +144,20 @@ class _ConnectionRepository extends CoreLoopRepository {
 
   @override
   Future<MomentEntry?> randomMoment() async => _moment;
+
+  @override
+  Future<MoodEntry?> getMyMood() async => null;
+
+  @override
+  Future<MoodEntry?> getPartnerMood() async => MoodEntry(
+    id: 'partner-mood',
+    type: 'love',
+    content: '今天也很想你',
+    visibility: 'both',
+    date: DateTime(2026, 9, 10),
+    isMine: false,
+  );
+
+  @override
+  Future<List<MoodEntry>> moodCalendar(DateTime month) async => const [];
 }

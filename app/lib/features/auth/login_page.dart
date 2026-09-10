@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../core/auth/auth_controller.dart';
-import '../../theme/lovespace_theme.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({required this.controller, super.key});
@@ -48,6 +47,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F5F3),
       body: Stack(
         children: [
           const Positioned(top: -110, right: -85, child: _Glow(size: 280)),
@@ -102,9 +102,9 @@ class _LoginPageState extends State<LoginPage> {
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface.withValues(alpha: .94),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        color: Colors.white.withValues(alpha: .82),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: .65)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x1ABE185D),
@@ -118,9 +118,9 @@ class _LoginPageState extends State<LoginPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('欢迎回来', style: Theme.of(context).textTheme.titleLarge),
+            Text('先告诉我你是谁~', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: const Color(0xFF2D2729), fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
-            const Text('登录只属于你们两个人的空间。'),
+            const Text('登录只属于你们两个人的空间。', textAlign: TextAlign.center),
             const SizedBox(height: 24),
             TextFormField(
               controller: _usernameController,
@@ -182,7 +182,7 @@ class _LoginPageState extends State<LoginPage> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text('进入 LoveSpace'),
+                  : const Text('开始使用'),
             ),
           ],
         ),
@@ -199,7 +199,7 @@ class _Welcome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
       children: [
         Container(
           width: compact ? 64 : 78,
@@ -211,17 +211,14 @@ class _Welcome extends StatelessWidget {
               BoxShadow(color: Color(0x24BE185D), blurRadius: 26),
             ],
           ),
-          child: const Icon(
-            Icons.favorite_rounded,
-            color: LoveSpaceColors.rose,
-            size: 40,
-          ),
+          child: const Center(child: Text('🏠', style: TextStyle(fontSize: 38))),
         ),
         const SizedBox(height: 24),
-        Text('LoveSpace', style: Theme.of(context).textTheme.headlineMedium),
+        Text('LoveSpace', style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: const Color(0xFFA05A67), fontWeight: FontWeight.w800, letterSpacing: 3)),
         const SizedBox(height: 10),
         Text(
-          '把平凡日子，\n变成两个人的收藏。',
+          compact ? '属于你们两个人的小世界' : '把平凡日子，\n变成两个人的收藏。',
+          textAlign: compact ? TextAlign.center : TextAlign.start,
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
             color: Theme.of(context).textTheme.bodyMedium?.color,
           ),

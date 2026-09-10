@@ -95,7 +95,7 @@ class _TimelinePageState extends State<TimelinePage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('我们的时间轴'),
+      title: const Text('回忆时间轴'),
       actions: [
         IconButton(
           tooltip: '随机回忆',
@@ -104,10 +104,10 @@ class _TimelinePageState extends State<TimelinePage> {
         ),
       ],
     ),
-    floatingActionButton: FloatingActionButton.extended(
+    floatingActionButton: FloatingActionButton(
       onPressed: () => context.push('/moments'),
-      icon: const Icon(Icons.add_rounded),
-      label: const Text('记录此刻'),
+      tooltip: '记录此刻',
+      child: const Icon(Icons.add_rounded),
     ),
     body: SafeArea(
       child: Center(
@@ -123,16 +123,27 @@ class _TimelinePageState extends State<TimelinePage> {
               : RefreshIndicator(
                   onRefresh: () => _load(reset: true),
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 96),
                     children: [
                       if (_items.isEmpty && !_loading)
                         const Padding(
-                          padding: EdgeInsets.all(36),
+                          padding: EdgeInsets.only(top: 132),
                           child: Column(
                             children: [
-                              Icon(Icons.timeline_rounded, size: 56),
+                              Text('📖', style: TextStyle(fontSize: 64)),
                               SizedBox(height: 14),
-                              Text('第一段共同回忆，等你们写下'),
+                              Text(
+                                '还没有回忆',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                '点击下方按钮，记录你们的故事吧~',
+                                style: TextStyle(color: Color(0xffaaa0a2)),
+                              ),
                             ],
                           ),
                         )
@@ -140,10 +151,34 @@ class _TimelinePageState extends State<TimelinePage> {
                         ..._groups().entries.expand(
                           (group) => [
                             Padding(
-                              padding: const EdgeInsets.fromLTRB(4, 18, 4, 10),
-                              child: Text(
-                                group.key,
-                                style: Theme.of(context).textTheme.titleLarge,
+                              padding: const EdgeInsets.only(
+                                top: 28,
+                                bottom: 14,
+                              ),
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 22,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xffe85d75),
+                                        Color(0xfff08a9b),
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(99),
+                                  ),
+                                  child: Text(
+                                    group.key,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                             ...group.value.map(
@@ -183,66 +218,93 @@ class _TimelineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final date = item.eventDate ?? item.createdAt;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 50,
-              child: Column(
-                children: [
-                  Text(
-                    '${date.day}',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  Text('${date.month}月'),
-                ],
+    return Padding(
+      padding: const EdgeInsets.only(left: 24, bottom: 12),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: -18,
+            top: 26,
+            child: Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: const Color(0xffeca8b4),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 3),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x0d32242a),
+                  blurRadius: 12,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (item.title.isNotEmpty)
-                    Text(
-                      item.title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  if (item.content.isNotEmpty) ...[
-                    const SizedBox(height: 5),
-                    Text(
-                      item.content,
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                  if (item.images.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: AspectRatio(
-                        aspectRatio: 16 / 9,
-                        child: Image.network(
-                          item.images.first,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => const ColoredBox(
-                            color: Colors.black12,
-                            child: Icon(Icons.broken_image_outlined),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xffa05a67),
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ),
+                        const SizedBox(height: 6),
+                        if (item.title.isNotEmpty)
+                          Text(
+                            item.title,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                        if (item.content.isNotEmpty) ...[
+                          const SizedBox(height: 5),
+                          Text(
+                            item.content,
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        if (item.images.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: AspectRatio(
+                              aspectRatio: 16 / 9,
+                              child: Image.network(
+                                item.images.first,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => const ColoredBox(
+                                  color: Colors.black12,
+                                  child: Icon(Icons.broken_image_outlined),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

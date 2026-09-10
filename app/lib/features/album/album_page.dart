@@ -40,6 +40,36 @@ class _AlbumPageState extends State<AlbumPage> {
     }
   }
 
+  Future<void> _chooseAlbumForUpload() async {
+    try {
+      final albums = await _albums;
+      if (!mounted) return;
+      if (albums.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先创建相册')));
+        return;
+      }
+      final selected = await showModalBottomSheet<Album>(
+        context: context,
+        showDragHandle: true,
+        builder: (context) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const ListTile(title: Text('选择要上传到的相册')),
+          ...albums.map((album) => ListTile(
+            leading: Text(_albumEmoji(album.name), style: const TextStyle(fontSize: 23)),
+            title: Text(album.name), subtitle: Text('${album.photoCount}张照片'),
+            onTap: () => Navigator.pop(context, album),
+          )),
+        ])),
+      );
+      if (selected != null && mounted) _openAlbum(selected, upload: true);
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('相册加载失败，请重试')));
+    }
+  }
+
+  static String _albumEmoji(String name) => switch (name) {
+    '日常' => '📱', '约会' => '💑', '旅行' => '✈️', '美食' => '🍜', '自拍' => '🤳', '节日' => '🎄', _ => '📁',
+  };
+
   Future<void> _renameAlbum(Album album) async {
     final changed = await showModalBottomSheet<bool>(
       context: context,
@@ -94,47 +124,22 @@ class _AlbumPageState extends State<AlbumPage> {
     }
   }
 
-  void _openAlbum(Album album) {
+  void _openAlbum(Album album, {bool upload = false}) {
     context
         .push(
           '/album/${Uri.encodeComponent(album.id)}'
-          '?name=${Uri.encodeQueryComponent(album.name)}',
+          '?name=${Uri.encodeQueryComponent(album.name)}${upload ? '&upload=1' : ''}',
         )
         .then((_) => _reload());
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return ColoredBox(
+      color: const Color(0xFFF8F5F3),
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(22, 22, 22, 10),
-          child: Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 16,
-            runSpacing: 12,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('我们的相册', style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 4),
-                  Text(
-                    '把一起经历的日子，好好收藏起来',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
-              FilledButton.icon(
-                onPressed: _createAlbum,
-                icon: const Icon(Icons.create_new_folder_outlined),
-                label: const Text('新建相册'),
-              ),
-            ],
-          ),
-        ),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -180,13 +185,13 @@ class _AlbumPageState extends State<AlbumPage> {
                         onRefresh: _reload,
                         child: GridView.builder(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(22, 14, 22, 110),
+                          padding: const EdgeInsets.fromLTRB(14, 18, 14, 110),
                           gridDelegate:
                               SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: columns,
                                 mainAxisSpacing: 14,
                                 crossAxisSpacing: 14,
-                                childAspectRatio: 0.88,
+                                childAspectRatio: 0.73,
                               ),
                           itemCount: albums.length,
                           itemBuilder: (context, index) {
@@ -209,8 +214,20 @@ class _AlbumPageState extends State<AlbumPage> {
             },
           ),
         ),
+        SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+            decoration: const BoxDecoration(color: Color(0xF2FFFFFF), boxShadow: [BoxShadow(color: Color(0x10000000), blurRadius: 12, offset: Offset(0, -2))]),
+            child: Row(children: [
+              Expanded(child: FilledButton(onPressed: _chooseAlbumForUpload, style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE85D75), foregroundColor: Colors.white, shape: const StadiumBorder()), child: const Text('上传照片'))),
+              const SizedBox(width: 10),
+              Expanded(child: OutlinedButton(onPressed: _createAlbum, style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFA05A67), backgroundColor: Colors.white, side: const BorderSide(color: Color(0xFFF0EDEA)), shape: const StadiumBorder()), child: const Text('新建相册'))),
+            ]),
+          ),
+        ),
       ],
-    );
+    ));
   }
 }
 
@@ -230,24 +247,17 @@ class _AlbumCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: colors.outlineVariant),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: InkWell(
+    return InkWell(
         onTap: onTap,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
+            Expanded(child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _AlbumCover(url: album.coverUrl),
+                  _AlbumCover(url: album.coverUrl, emoji: _emoji(album.name)),
                   Positioned(
                     top: 6,
                     right: 6,
@@ -285,7 +295,7 @@ class _AlbumCard extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
+            )),
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
               child: Column(
@@ -295,66 +305,66 @@ class _AlbumCard extends StatelessWidget {
                     album.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: const TextStyle(color: Color(0xFF2D2729),
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    '${album.photoCount} 张照片',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                    '${album.photoCount}张',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFF948A8D), fontSize: 12),
                   ),
                 ],
               ),
             ),
           ],
         ),
-      ),
-    );
+      );
   }
+
+  static String _emoji(String name) => switch (name) {
+    '日常' => '📱', '约会' => '💑', '旅行' => '✈️', '美食' => '🍜', '自拍' => '🤳', '节日' => '🎄', _ => '📁',
+  };
 }
 
 class _AlbumCover extends StatelessWidget {
-  const _AlbumCover({required this.url});
+  const _AlbumCover({required this.url, required this.emoji});
 
   final String url;
+  final String emoji;
 
   @override
   Widget build(BuildContext context) {
-    if (url.isEmpty) return const _CoverPlaceholder();
+    if (url.isEmpty) return _CoverPlaceholder(emoji: emoji);
     return Image.network(
       url,
       fit: BoxFit.cover,
       semanticLabel: '相册封面',
       loadingBuilder: (context, child, progress) =>
-          progress == null ? child : const _CoverPlaceholder(loading: true),
-      errorBuilder: (_, _, _) => const _CoverPlaceholder(),
+          progress == null ? child : _CoverPlaceholder(emoji: emoji, loading: true),
+      errorBuilder: (_, _, _) => _CoverPlaceholder(emoji: emoji),
     );
   }
 }
 
 class _CoverPlaceholder extends StatelessWidget {
-  const _CoverPlaceholder({this.loading = false});
+  const _CoverPlaceholder({required this.emoji, this.loading = false});
 
+  final String emoji;
   final bool loading;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     return ColoredBox(
-      color: colors.primaryContainer,
+      color: const Color(0xFFF7F2ED),
       child: Center(
         child: loading
             ? const SizedBox.square(
                 dimension: 26,
                 child: CircularProgressIndicator(strokeWidth: 2.4),
               )
-            : Icon(
-                Icons.photo_library_outlined,
-                size: 44,
-                color: colors.onPrimaryContainer,
-              ),
+            : Text(emoji, style: const TextStyle(fontSize: 42)),
       ),
     );
   }

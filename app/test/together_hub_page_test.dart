@@ -89,6 +89,15 @@ void main() {
 
     expect(find.text('番茄炒蛋'), findsOneWidget);
     expect(find.text('订单记录'), findsOneWidget);
+    await tester.tap(find.text('想吃什么？点TA做'));
+    await tester.pumpAndSettle();
+    expect(find.text('选择菜品后下单'), findsOneWidget);
+    expect(find.text('番茄炒蛋'), findsWidgets);
+    await tester.tap(find.text('番茄炒蛋').last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('选择 番茄炒蛋 的规格'), findsOneWidget);
+    await tester.tap(find.text('加入菜单'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('增加数量'));
     await tester.pumpAndSettle();
     expect(find.text('选择 番茄炒蛋 的规格'), findsOneWidget);
@@ -114,7 +123,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('我的积分'), findsOneWidget);
-    expect(find.text('TA 的积分'), findsOneWidget);
+    expect(find.text('TA的积分'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

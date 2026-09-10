@@ -81,7 +81,7 @@ Android 使用 Flutter 应用，iPhone 使用添加到主屏幕的 PWA。两端�
 
 | 层次 | 技术 | 职责 |
 | --- | --- | --- |
-| 客户端 | Flutter · Dart · Material 3 | Android 与 Web/PWA 界面，深浅色主题与响应式布局 |
+| 客户端 | Flutter · Dart · Material 3 | Android 与 Web/PWA 界面，奶油浅色主题与响应式布局 |
 | 路由与交互 | GoRouter · Image Picker | 页面导航、通知深链与图片选择 |
 | 本地数据 | Shared Preferences · Flutter Secure Storage | 按账号保存部分最近内容与文字草稿；Android 安全保存登录凭据 |
 | 服务端 | Java 21 · Spring Boot 3.5 · Spring Security | 业务接口、身份认证与双人空间权限校验 |
@@ -121,3 +121,5 @@ docs/screenshots/      # 实际界面截图与来源说明
 ```
 
 本仓库维护 LoveSpace 独立版客户端与服务端。
+
+当前前端按 LoveSpace 小程序源码移植，页面对应、平台适配与本地预览方式见 [前端移植记录](docs/frontend-reference-port.md)。上方截图仍对应截图说明中的旧源码基线。

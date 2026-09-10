@@ -37,9 +37,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('等待你回答'), findsOneWidget);
+    expect(find.text('我的回答'), findsOneWidget);
     expect(find.text('离线草稿'), findsOneWidget);
-    expect(find.textContaining('只有双方都回答后'), findsOneWidget);
+    expect(find.textContaining('先独立作答'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

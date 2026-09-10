@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/auth/auth_controller.dart';
@@ -28,7 +29,23 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   late Future<PushStatus> _pushStatus = widget.pushClient.status();
+  late final Future<_CoupleProfile> _couple = _loadCouple();
   bool _enablingPush = false;
+
+  Future<_CoupleProfile> _loadCouple() async {
+    final result = await widget.repository.apiClient.post(
+      '/api/v1/functions/couple',
+      body: const {'action': 'getInfo'},
+    );
+    final couple = result['couple'] as Map<String, dynamic>?;
+    final partner = result['partner'] as Map<String, dynamic>?;
+    return _CoupleProfile(
+      startDate: DateTime.tryParse(couple?['startDate']?.toString() ?? ''),
+      partnerName: partner?['nickName'] as String? ?? 'TA',
+      partnerAvatar: partner?['avatarUrl'] as String? ?? '',
+      bound: couple != null,
+    );
+  }
 
   Future<void> _editNickname() async {
     final controller = TextEditingController(text: widget.user.nickname);
@@ -250,79 +267,287 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('个人中心')),
+    backgroundColor: const Color(0xFFF8F5F3),
     body: SafeArea(
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
           child: ListView(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.fromLTRB(14, 24, 14, 32),
             children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Row(
-                    children: [
-                      Semantics(
-                        button: true,
-                        label: '修改头像',
-                        child: InkWell(
-                          onTap: _editAvatar,
-                          borderRadius: BorderRadius.circular(40),
-                          child: Stack(
-                            children: [
-                              CircleAvatar(
-                                radius: 31,
-                                foregroundImage: widget.user.avatarUrl.isEmpty
-                                    ? null
-                                    : NetworkImage(widget.user.avatarUrl),
-                                child: const Icon(
-                                  Icons.person_outline_rounded,
-                                  size: 30,
+              Container(
+                padding: const EdgeInsets.fromLTRB(18, 8, 18, 22),
+                decoration: const BoxDecoration(color: Color(0xFFF8F5F3)),
+                child: Column(
+                  children: [
+                    const Text(
+                      'OUR SPACE',
+                      style: TextStyle(
+                        letterSpacing: 2.4,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFA05A67),
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 13),
+                    Row(
+                      children: [
+                        Semantics(
+                          button: true,
+                          label: '修改头像',
+                          child: InkWell(
+                            onTap: _editAvatar,
+                            borderRadius: BorderRadius.circular(40),
+                            child: Stack(
+                              children: [
+                                CircleAvatar(
+                                  radius: 37,
+                                  backgroundImage: const AssetImage(
+                                    'assets/reference/default-avatar.png',
+                                  ),
+                                  foregroundImage: widget.user.avatarUrl.isEmpty
+                                      ? null
+                                      : NetworkImage(widget.user.avatarUrl),
                                 ),
-                              ),
-                              const Positioned(
-                                right: 0,
-                                bottom: 0,
-                                child: CircleAvatar(
-                                  radius: 11,
-                                  child: Icon(
-                                    Icons.photo_camera_outlined,
-                                    size: 13,
+                                const Positioned(
+                                  right: 0,
+                                  bottom: 0,
+                                  child: CircleAvatar(
+                                    backgroundColor: Color(0xFFE85D75),
+                                    foregroundColor: Colors.white,
+                                    radius: 11,
+                                    child: Icon(
+                                      Icons.photo_camera_outlined,
+                                      size: 13,
+                                    ),
                                   ),
                                 ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        FutureBuilder<_CoupleProfile>(
+                          future: _couple,
+                          builder: (context, snapshot) {
+                            final info = snapshot.data;
+                            if (info?.bound != true) {
+                              return const SizedBox.shrink();
+                            }
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  '♥',
+                                  style: TextStyle(
+                                    color: Color(0xFFE85D75),
+                                    fontSize: 19,
+                                  ),
+                                ),
+                                const SizedBox(width: 7),
+                                CircleAvatar(
+                                  radius: 29,
+                                  backgroundImage: const AssetImage(
+                                    'assets/reference/default-avatar.png',
+                                  ),
+                                  foregroundImage: info!.partnerAvatar.isEmpty
+                                      ? null
+                                      : NetworkImage(info.partnerAvatar),
+                                ),
+                                const SizedBox(width: 12),
+                              ],
+                            );
+                          },
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              FutureBuilder<_CoupleProfile>(
+                                future: _couple,
+                                builder: (context, snapshot) => Text(
+                                  snapshot.data?.bound == true
+                                      ? '${widget.user.displayName}  &  ${snapshot.data!.partnerName}'
+                                      : widget.user.displayName,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleLarge
+                                      ?.copyWith(
+                                        color: const Color(0xFF2D2729),
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                '点击名字可以修改昵称',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(color: const Color(0xFF948A8D)),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.user.displayName,
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              widget.user.username,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ],
+                        IconButton(
+                          tooltip: '修改昵称',
+                          onPressed: _editNickname,
+                          icon: const Icon(Icons.edit_outlined),
                         ),
-                      ),
-                      IconButton(
-                        tooltip: '修改昵称',
-                        onPressed: _editNickname,
-                        icon: const Icon(Icons.edit_outlined),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    FutureBuilder<_CoupleProfile>(
+                      future: _couple,
+                      builder: (context, snapshot) {
+                        final date = snapshot.data?.startDate;
+                        final days = date == null
+                            ? null
+                            : DateTime.now()
+                                  .difference(
+                                    DateTime(date.year, date.month, date.day),
+                                  )
+                                  .inDays
+                                  .abs();
+                        return Text(
+                          days == null ? '属于你们两个人的小世界' : '共同走过 $days 天',
+                          style: const TextStyle(
+                            color: Color(0xFF948A8D),
+                            fontSize: 13,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: _FeatureLink(
+                      dark: true,
+                      kicker: '每天 5 分钟',
+                      title: '今日问答',
+                      onTap: () => context.push('/daily-question'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _FeatureLink(
+                      kicker: '看见关系变化',
+                      title: '关系月报',
+                      onTap: () => context.push('/monthly-report'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 28),
+              Text(
+                '共同生活',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              _ProfileMenu(
+                items: [
+                  _ProfileMenuItem(
+                    '◇',
+                    const Color(0xFFF8DFE4),
+                    '纪念日',
+                    '重要日期',
+                    () => context.push('/anniversaries'),
+                  ),
+                  _ProfileMenuItem(
+                    '◌',
+                    const Color(0xFFEEE2D2),
+                    '心情记录',
+                    '彼此看见',
+                    () => context.push('/mood'),
+                  ),
+                  _ProfileMenuItem(
+                    '✓',
+                    const Color(0xFFE2ECE4),
+                    '共同任务',
+                    '一起完成',
+                    () => context.push('/tasks'),
+                  ),
+                  _ProfileMenuItem(
+                    '⌁',
+                    const Color(0xFFF4E1D8),
+                    '今天吃什么',
+                    '共同点菜',
+                    () => context.push('/menu'),
+                  ),
+                  _ProfileMenuItem(
+                    '♡',
+                    const Color(0xFFEAE4F0),
+                    '爱心积分',
+                    '让付出被看见',
+                    () => context.push('/points'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 28),
+              Text(
+                '珍藏与互动',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF8F8386),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _ProfileMenu(
+                items: [
+                  _ProfileMenuItem(
+                    '☆',
+                    const Color(0xFFE1EAF0),
+                    '愿望清单',
+                    '',
+                    () => context.push('/wishes'),
+                  ),
+                  _ProfileMenuItem(
+                    '□',
+                    const Color(0xFFF8DFE4),
+                    '时光胶囊',
+                    '',
+                    () => context.push('/capsules'),
+                  ),
+                  _ProfileMenuItem(
+                    '＋',
+                    const Color(0xFFE2ECE4),
+                    '感谢墙',
+                    '',
+                    () => context.push('/thanks'),
+                  ),
+                  _ProfileMenuItem(
+                    '?',
+                    const Color(0xFFEEE2D2),
+                    '默契测试',
+                    '',
+                    () => context.push('/quiz'),
+                  ),
+                  _ProfileMenuItem(
+                    '⌇',
+                    const Color(0xFFF4E1D8),
+                    '回忆时间轴',
+                    '',
+                    () => context.push('/timeline'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 28),
+              _ProfileMenu(
+                items: [
+                  _ProfileMenuItem(
+                    '··',
+                    const Color(0xFFEEE9EA),
+                    '设置与隐私',
+                    '',
+                    () => context.push('/settings'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 28),
               Text(
                 '通知与设备',
                 style: Theme.of(
@@ -334,7 +559,18 @@ class _ProfilePageState extends State<ProfilePage> {
                 future: _pushStatus,
                 builder: (context, snapshot) {
                   final status = snapshot.data;
-                  return Card(
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x10000000),
+                          blurRadius: 12,
+                          offset: Offset(0, 3),
+                        ),
+                      ],
+                    ),
                     child: Column(
                       children: [
                         ListTile(
@@ -443,5 +679,169 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ),
     ),
+  );
+}
+
+class _FeatureLink extends StatelessWidget {
+  const _FeatureLink({
+    required this.kicker,
+    required this.title,
+    required this.onTap,
+    this.dark = false,
+  });
+  final String kicker;
+  final String title;
+  final VoidCallback onTap;
+  final bool dark;
+  @override
+  Widget build(BuildContext context) => Material(
+    color: dark ? const Color(0xFF2D2729) : const Color(0xFFF0DFC9),
+    borderRadius: BorderRadius.circular(18),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: SizedBox(
+        height: 104,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                kicker,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: dark
+                      ? Colors.white60
+                      : const Color(0xFF3A3033).withValues(alpha: .6),
+                ),
+              ),
+              const Spacer(),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: dark ? Colors.white : const Color(0xFF3A3033),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '→',
+                    style: TextStyle(
+                      color: dark ? Colors.white70 : const Color(0xFF3A3033),
+                      fontSize: 20,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _CoupleProfile {
+  const _CoupleProfile({
+    required this.startDate,
+    required this.partnerName,
+    required this.partnerAvatar,
+    required this.bound,
+  });
+  final DateTime? startDate;
+  final String partnerName;
+  final String partnerAvatar;
+  final bool bound;
+}
+
+class _ProfileMenuItem {
+  const _ProfileMenuItem(
+    this.symbol,
+    this.color,
+    this.label,
+    this.note,
+    this.onTap,
+  );
+  final String symbol;
+  final Color color;
+  final String label;
+  final String note;
+  final VoidCallback onTap;
+}
+
+class _ProfileMenu extends StatelessWidget {
+  const _ProfileMenu({required this.items});
+  final List<_ProfileMenuItem> items;
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(18),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x0C3C282D),
+          blurRadius: 14,
+          offset: Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+      children: items.asMap().entries.map((entry) {
+        final item = entry.value;
+        return Column(
+          children: [
+            ListTile(
+              minTileHeight: 58,
+              onTap: item.onTap,
+              leading: Container(
+                width: 31,
+                height: 31,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: item.color,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(item.symbol, style: const TextStyle(fontSize: 18)),
+              ),
+              title: Text(
+                item.label,
+                style: const TextStyle(
+                  color: Color(0xFF3B3235),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (item.note.isNotEmpty)
+                    Text(
+                      item.note,
+                      style: const TextStyle(
+                        color: Color(0xFFAAA0A2),
+                        fontSize: 11,
+                      ),
+                    ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    '›',
+                    style: TextStyle(color: Color(0xFFC0B6B8), fontSize: 24),
+                  ),
+                ],
+              ),
+            ),
+            if (entry.key != items.length - 1)
+              const Divider(height: 1, indent: 62),
+          ],
+        );
+      }).toList(),
+    )),
   );
 }

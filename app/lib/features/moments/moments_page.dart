@@ -10,11 +10,14 @@ class MomentsPage extends StatefulWidget {
     required this.repository,
     required this.cache,
     this.targetMomentId,
+    this.createOnOpen = false,
     super.key,
   });
   final CoreLoopRepository repository;
   final AccountCache cache;
   final String? targetMomentId;
+  /// Lets another surface open the source-style “record this moment” sheet.
+  final bool createOnOpen;
   @override
   State<MomentsPage> createState() => _MomentsPageState();
 }
@@ -34,6 +37,11 @@ class _MomentsPageState extends State<MomentsPage> {
     super.initState();
     _scroll.addListener(_onScroll);
     _load(reset: true);
+    if (widget.createOnOpen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _compose();
+      });
+    }
   }
 
   void _onScroll() {
@@ -120,6 +128,24 @@ class _MomentsPageState extends State<MomentsPage> {
     }
   }
 
+  Future<void> _random() async {
+    try {
+      final item = await widget.repository.randomMoment();
+      if (!mounted) return;
+      if (item == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('还没有可抽取的回忆')));
+        return;
+      }
+      await showDialog<void>(context: context, builder: (context) => AlertDialog(
+        title: Text(item.title.isEmpty ? '随机回忆' : item.title),
+        content: Text(item.content.isEmpty ? '这一刻还没有文字记录。' : item.content),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('收下这份回忆'))],
+      ));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('随机回忆暂时无法打开')));
+    }
+  }
+
   @override
   void dispose() {
     _scroll.dispose();
@@ -128,16 +154,7 @@ class _MomentsPageState extends State<MomentsPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('点点滴滴'),
-      actions: [
-        IconButton(
-          tooltip: '发布点滴',
-          onPressed: _compose,
-          icon: const Icon(Icons.add_rounded),
-        ),
-      ],
-    ),
+    backgroundColor: const Color(0xFFF8F5F3),
     body: SafeArea(
       child: Center(
         child: ConstrainedBox(
@@ -146,10 +163,10 @@ class _MomentsPageState extends State<MomentsPage> {
         ),
       ),
     ),
-    floatingActionButton: FloatingActionButton.extended(
+    floatingActionButton: FloatingActionButton(
       onPressed: _compose,
-      icon: const Icon(Icons.edit_outlined),
-      label: const Text('记录此刻'),
+      backgroundColor: const Color(0xFFE85D75), foregroundColor: Colors.white,
+      shape: const CircleBorder(), child: const Text('+', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w300)),
     ),
   );
 
@@ -178,11 +195,19 @@ class _MomentsPageState extends State<MomentsPage> {
         ),
       );
     }
-    return RefreshIndicator(
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+        child: SizedBox(width: double.infinity, child: OutlinedButton.icon(
+          onPressed: _random, icon: const Text('🎲'), label: const Text('随机回忆'),
+          style: OutlinedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF6F6467), side: const BorderSide(color: Color(0xFFF0EDEA)), shape: const StadiumBorder()),
+        )),
+      ),
+      Expanded(child: RefreshIndicator(
       onRefresh: () => _load(reset: true),
       child: ListView.builder(
         controller: _scroll,
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+        padding: const EdgeInsets.fromLTRB(14, 18, 14, 100),
         itemCount:
             _items.length + (_loadingMore ? 1 : 0) + (_fromCache ? 1 : 0),
         itemBuilder: (context, index) {
@@ -214,7 +239,9 @@ class _MomentsPageState extends State<MomentsPage> {
           );
         },
       ),
-    );
+      ),
+    ),
+    ]);
   }
 }
 
@@ -230,12 +257,17 @@ class _MomentCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   @override
-  Widget build(BuildContext context) => Card(
-    color: highlighted
-        ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.45)
-        : null,
+  Widget build(BuildContext context) => InkWell(
+    onTap: onEdit,
+    borderRadius: BorderRadius.circular(16),
+    child: Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Container(width: 12, margin: const EdgeInsets.only(top: 22, right: 12), height: 12, decoration: const BoxDecoration(color: Color(0xFFE85D75), shape: BoxShape.circle)),
+      Expanded(child: Container(
+    decoration: BoxDecoration(color: highlighted ? const Color(0xFFFFF3F5) : Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: const [BoxShadow(color: Color(0x10000000), blurRadius: 14, offset: Offset(0, 4))]),
     child: Padding(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -252,9 +284,7 @@ class _MomentCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   item.title.isEmpty ? '生活片段' : item.title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, color: const Color(0xFF2D2729)),
                 ),
               ),
               PopupMenuButton<String>(
@@ -302,10 +332,7 @@ class _MomentCard extends StatelessWidget {
               runSpacing: 6,
               children: item.tags
                   .map(
-                    (tag) => Chip(
-                      label: Text(tag),
-                      visualDensity: VisualDensity.compact,
-                    ),
+                    (tag) => Text('#$tag', style: const TextStyle(color: Color(0xFFA05A67), fontSize: 12)),
                   )
                   .toList(),
             ),
@@ -318,7 +345,7 @@ class _MomentCard extends StatelessWidget {
         ],
       ),
     ),
-  );
+  ))]));
   static String _date(DateTime value) =>
       '${value.year}.${value.month.toString().padLeft(2, '0')}.${value.day.toString().padLeft(2, '0')}';
 }

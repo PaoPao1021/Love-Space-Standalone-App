@@ -19,12 +19,16 @@ class TasksPage extends StatefulWidget {
 }
 
 class _TasksPageState extends State<TasksPage> {
-  String _status = 'pending';
   bool _busy = false;
   late Future<List<CoupleTask>> _tasks = _load();
 
   Future<List<CoupleTask>> _load() async {
-    final items = [...await widget.repository.tasks(status: _status)];
+    final groups = await Future.wait([
+      widget.repository.tasks(status: 'pending'),
+      widget.repository.tasks(status: 'completed'),
+    ]);
+    final items = [...groups[0], ...groups[1]]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final targetId = widget.targetTaskId;
     if (targetId == null || targetId.isEmpty) return items;
     final index = items.indexWhere((item) => item.id == targetId);
@@ -47,7 +51,6 @@ class _TasksPageState extends State<TasksPage> {
       builder: (_) => _TaskEditor(repository: widget.repository),
     );
     if (created == true) {
-      _status = 'pending';
       _reload();
     }
   }
@@ -103,39 +106,13 @@ class _TasksPageState extends State<TasksPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('共同任务'),
-      actions: [
-        IconButton(
-          tooltip: '新建任务',
-          onPressed: _busy ? null : _create,
-          icon: const Icon(Icons.add_task_outlined),
-        ),
-      ],
-    ),
+    appBar: AppBar(title: const Text('共同任务')),
     body: SafeArea(
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 760),
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(18, 8, 18, 12),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(value: 'pending', label: Text('待完成')),
-                      ButtonSegment(value: 'completed', label: Text('已完成')),
-                    ],
-                    selected: {_status},
-                    onSelectionChanged: (value) {
-                      _status = value.first;
-                      _reload();
-                    },
-                  ),
-                ),
-              ),
               Expanded(
                 child: FutureBuilder<List<CoupleTask>>(
                   future: _tasks,
@@ -152,19 +129,29 @@ class _TasksPageState extends State<TasksPage> {
                       );
                     }
                     final items = snapshot.data ?? const [];
-                    if (items.isEmpty) {
-                      return _TaskEmpty(completed: _status == 'completed');
-                    }
+                    if (items.isEmpty) return const _TaskEmpty();
                     return RefreshIndicator(
                       onRefresh: () async {
                         _reload();
                         await _tasks;
                       },
                       child: ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-                        itemCount: items.length,
+                        padding: const EdgeInsets.fromLTRB(28, 10, 28, 112),
+                        itemCount: items.length + 1,
                         itemBuilder: (_, index) {
-                          final item = items[index];
+                          if (index == 0) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Text(
+                                '${items.length}个任务',
+                                style: const TextStyle(
+                                  color: Color(0xFFA79DA0),
+                                  fontSize: 13,
+                                ),
+                              ),
+                            );
+                          }
+                          final item = items[index - 1];
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: _TaskCard(
@@ -174,6 +161,7 @@ class _TasksPageState extends State<TasksPage> {
                               busy: _busy,
                               onComplete: () => _complete(item),
                               onDelete: () => _delete(item),
+                              onTap: () => _showDetail(item),
                             ),
                           );
                         },
@@ -187,10 +175,36 @@ class _TasksPageState extends State<TasksPage> {
         ),
       ),
     ),
-    floatingActionButton: FloatingActionButton.extended(
+    floatingActionButton: FloatingActionButton(
       onPressed: _busy ? null : _create,
-      icon: const Icon(Icons.add_rounded),
-      label: const Text('新建任务'),
+      backgroundColor: const Color(0xFFE85D75),
+      child: const Text(
+        '+',
+        style: TextStyle(
+          fontSize: 30,
+          color: Colors.white,
+          fontWeight: FontWeight.w300,
+        ),
+      ),
+    ),
+  );
+
+  Future<void> _showDetail(CoupleTask task) => showModalBottomSheet<void>(
+    context: context,
+    useSafeArea: true,
+    isScrollControlled: true,
+    builder: (context) => _TaskDetail(
+      task: task,
+      userId: widget.userId,
+      busy: _busy,
+      onComplete: () {
+        Navigator.pop(context);
+        _complete(task);
+      },
+      onDelete: () {
+        Navigator.pop(context);
+        _delete(task);
+      },
     ),
   );
 }
@@ -203,6 +217,7 @@ class _TaskCard extends StatelessWidget {
     required this.busy,
     required this.onComplete,
     required this.onDelete,
+    required this.onTap,
   });
   final CoupleTask task;
   final String userId;
@@ -210,106 +225,105 @@ class _TaskCard extends StatelessWidget {
   final bool busy;
   final VoidCallback onComplete;
   final VoidCallback onDelete;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final mine = task.createdBy == userId;
     final due = task.dueDate;
     final overdue =
         due != null &&
         !task.completed &&
         due.isBefore(DateUtils.dateOnly(DateTime.now()));
-    return Card(
-      color: highlighted
-          ? Theme.of(
-              context,
-            ).colorScheme.primaryContainer.withValues(alpha: 0.45)
-          : null,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  task.completed
-                      ? Icons.task_alt_rounded
-                      : Icons.radio_button_unchecked_rounded,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    task.title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      decoration: task.completed
-                          ? TextDecoration.lineThrough
-                          : null,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Card(
+        elevation: 0,
+        color: highlighted
+            ? const Color(0xFFF9E7EA)
+            : task.completed
+            ? const Color(0xFFF8F5F2)
+            : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.completed ? '✅' : '⬜',
+                    style: const TextStyle(fontSize: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      task.title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        decoration: task.completed
+                            ? TextDecoration.lineThrough
+                            : null,
+                      ),
                     ),
                   ),
-                ),
-                if (mine)
-                  IconButton(
-                    tooltip: '删除任务',
-                    onPressed: busy ? null : onDelete,
-                    icon: const Icon(Icons.delete_outline_rounded),
-                  ),
+                ],
+              ),
+              if (task.description.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(task.description),
               ],
-            ),
-            if (task.description.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(task.description),
-            ],
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                Chip(
-                  avatar: const Icon(Icons.person_outline_rounded, size: 18),
-                  label: Text(_assignee(task.assignee)),
-                ),
-                if (task.rewardPoints > 0)
-                  Chip(
-                    avatar: const Icon(Icons.stars_outlined, size: 18),
-                    label: Text('${task.rewardPoints} 积分'),
-                  ),
-                if (due != null)
-                  Chip(
-                    avatar: Icon(
-                      overdue
-                          ? Icons.warning_amber_rounded
-                          : Icons.event_outlined,
-                      size: 18,
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _softTag(_assignee(task.assignee), const Color(0xFFF8EDED)),
+                  if (task.rewardPoints > 0)
+                    Text(
+                      '+${task.rewardPoints}积分',
+                      style: const TextStyle(
+                        color: Color(0xFFA05A67),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                    label: Text('${overdue ? '已逾期 · ' : ''}${_date(due)}'),
-                  ),
-              ],
-            ),
-            if (task.canComplete(userId)) ...[
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: busy ? null : onComplete,
-                  icon: const Icon(Icons.check_rounded),
-                  label: const Text('标记完成'),
-                ),
+                  if (due != null)
+                    Chip(
+                      avatar: Icon(
+                        overdue
+                            ? Icons.warning_amber_rounded
+                            : Icons.event_outlined,
+                        size: 18,
+                      ),
+                      label: Text('${overdue ? '已逾期 · ' : ''}${_date(due)}'),
+                    ),
+                ],
               ),
             ],
-          ],
+          ),
         ),
       ),
     );
   }
 
   static String _assignee(String value) => switch (value) {
-    'me' => '创建者完成',
-    'partner' => '对方完成',
-    _ => '两人都可以',
+    'me' => '我的',
+    'partner' => 'TA的',
+    _ => '双方',
   };
+  static Widget _softTag(String label, Color color) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+    decoration: BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(99),
+    ),
+    child: Text(
+      label,
+      style: const TextStyle(fontSize: 11, color: Color(0xFFA05A67)),
+    ),
+  );
   static String _date(DateTime value) =>
       '${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
 }
@@ -440,9 +454,107 @@ class _TaskEditorState extends State<_TaskEditor> {
   );
 }
 
+class _TaskDetail extends StatelessWidget {
+  const _TaskDetail({
+    required this.task,
+    required this.userId,
+    required this.busy,
+    required this.onComplete,
+    required this.onDelete,
+  });
+  final CoupleTask task;
+  final String userId;
+  final bool busy;
+  final VoidCallback onComplete;
+  final VoidCallback onDelete;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(28, 16, 28, 36),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: task.completed
+                ? const Color(0xFFEEF2EB)
+                : const Color(0xFFF7F2ED),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            task.completed ? '✅ 已完成' : '⏳ 进行中',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Text(
+          task.title,
+          textAlign: TextAlign.center,
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        if (task.description.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7F2ED),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(task.description),
+          ),
+        ],
+        const SizedBox(height: 16),
+        Wrap(
+          children: [
+            _info('积分奖励', '+${task.rewardPoints}'),
+            _info('指派给', _TaskCard._assignee(task.assignee)),
+            _info('创建时间', _TaskCard._date(task.createdAt)),
+            if (task.completedBy.isNotEmpty) _info('完成者', task.completedBy),
+          ],
+        ),
+        if (task.canComplete(userId)) ...[
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: busy ? null : onComplete,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFE85D75),
+              shape: const StadiumBorder(),
+            ),
+            child: Text('标记完成 +${task.rewardPoints}积分'),
+          ),
+        ],
+        if (task.createdBy == userId)
+          TextButton(
+            onPressed: busy ? null : onDelete,
+            child: const Text('删除任务'),
+          ),
+      ],
+    ),
+  );
+  static Widget _info(String label, String value) => SizedBox(
+    width: 150,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: Color(0xFFA79DA0), fontSize: 12),
+          ),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ],
+      ),
+    ),
+  );
+}
+
 class _TaskEmpty extends StatelessWidget {
-  const _TaskEmpty({required this.completed});
-  final bool completed;
+  const _TaskEmpty();
   @override
   Widget build(BuildContext context) => Center(
     child: Padding(
@@ -450,12 +562,11 @@ class _TaskEmpty extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            completed ? Icons.inbox_outlined : Icons.task_alt_outlined,
-            size: 56,
-          ),
+          const Text('✅', style: TextStyle(fontSize: 56)),
           const SizedBox(height: 14),
-          Text(completed ? '还没有已完成任务' : '现在没有待办，一身轻松'),
+          const Text('还没有任务'),
+          const SizedBox(height: 8),
+          const Text('给对方指派任务，完成后获得积分~'),
         ],
       ),
     ),

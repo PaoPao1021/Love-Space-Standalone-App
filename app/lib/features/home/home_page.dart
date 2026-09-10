@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
 import '../../core/auth/auth_models.dart';
-import '../../theme/lovespace_theme.dart';
 import '../anniversary/anniversary.dart';
 import '../anniversary/anniversary_repository.dart';
 import '../core_loop/core_loop.dart';
 import '../core_loop/core_loop_repository.dart';
+import '../wellness/wellness_repository.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -23,12 +22,20 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late Future<List<Anniversary>> _anniversaries;
-  late Future<DailyQuestion> _question;
-  late Future<MoodEntry?> _myMood;
-  late Future<MoodEntry?> _partnerMood;
-  late Future<int> _unread;
-  late Future<MomentPageResult> _moments;
+  List<Anniversary> _anniversaries = [];
+  List<MomentEntry> _moments = [];
+  List<AppNotification> _notices = [];
+  DailyQuestion? _question;
+  MoodEntry? _mine;
+  MoodEntry? _theirMood;
+  FitnessDashboard? _fitness;
+  Map<String, dynamic> _couple = {}, _partner = {};
+  int? _energy;
+  final Set<String> _errors = {};
+  bool _loading = true;
+  int _generation = 0;
+  static const rose = Color(0xFFE85D75);
+  static const muted = Color(0xFF9A8F92);
 
   @override
   void initState() {
@@ -36,438 +43,850 @@ class _HomePageState extends State<HomePage> {
     _reload();
   }
 
-  void _reload() {
-    _anniversaries = widget.anniversaryRepository.list();
-    _question = widget.coreLoopRepository.getDailyQuestion();
-    _myMood = widget.coreLoopRepository.getMyMood();
-    _partnerMood = widget.coreLoopRepository.getPartnerMood();
-    _unread = widget.coreLoopRepository.unreadCount();
-    _moments = widget.coreLoopRepository.moments();
+  Future<void> _reload() async {
+    final generation = ++_generation;
+    final repo = widget.coreLoopRepository;
+    Future<void> read<T>(
+      String name,
+      Future<T> request,
+      void Function(T) apply,
+    ) async {
+      try {
+        final result = await request;
+        if (mounted && generation == _generation) {
+          setState(() {
+            apply(result);
+            _errors.remove(name);
+          });
+        }
+      } catch (_) {
+        if (mounted && generation == _generation) {
+          setState(() => _errors.add(name));
+        }
+      }
+    }
+
+    await Future.wait([
+      read(
+        '空间',
+        repo.apiClient.post(
+          '/api/v1/functions/couple',
+          body: const {'action': 'getInfo'},
+        ),
+        (data) {
+          _couple = (data['couple'] as Map<String, dynamic>?) ?? {};
+          _partner = (data['partner'] as Map<String, dynamic>?) ?? {};
+        },
+      ),
+      read(
+        '纪念日',
+        widget.anniversaryRepository.list(),
+        (value) => _anniversaries = value,
+      ),
+      read('每日问答', repo.getDailyQuestion(), (value) => _question = value),
+      read('我的心情', repo.getMyMood(), (value) => _mine = value),
+      read('对方心情', repo.getPartnerMood(), (value) => _theirMood = value),
+      read(
+        '回忆',
+        repo.moments(),
+        (value) => _moments = value.items.take(3).toList(),
+      ),
+      read(
+        '通知',
+        repo.notifications(),
+        (value) =>
+            _notices = value.items.where((item) => !item.read).take(2).toList(),
+      ),
+      read(
+        '健康',
+        WellnessRepository(apiClient: repo.apiClient).dashboard(),
+        (value) => _fitness = value,
+      ),
+      read(
+        '能量',
+        repo.apiClient.post(
+          '/api/v1/functions/points',
+          body: const {'action': 'getScore'},
+        ),
+        (value) {
+          final total =
+              ((value['myScore'] as num?) ?? 0) +
+              ((value['partnerScore'] as num?) ?? 0);
+          _energy = (total / 20).round().clamp(0, 100);
+        },
+      ),
+    ]);
+    if (mounted && generation == _generation) setState(() => _loading = false);
   }
 
-  Future<void> _refresh() async {
-    setState(_reload);
-    for (final future in [
-      _anniversaries,
-      _question,
-      _myMood,
-      _partnerMood,
-      _unread,
-      _moments,
-    ]) {
-      try {
-        await future;
-      } catch (_) {}
-    }
+  Future<void> _open(String path) async {
+    await context.push(path);
+    if (mounted) await _reload();
+  }
+
+  static const _moods = {
+    'happy': ('😊', '开心'),
+    'love': ('🥰', '甜蜜'),
+    'calm': ('😌', '平静'),
+    'excited': ('🤩', '兴奋'),
+    'miss': ('🥺', '想念'),
+    'grateful': ('🙏', '感恩'),
+    'tired': ('😴', '疲惫'),
+    'anxious': ('😰', '焦虑'),
+    'sad': ('😢', '委屈'),
+    'angry': ('😤', '生气'),
+  };
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    if (hour < 6) return '夜深了，记得好好休息';
+    if (hour < 11) return '早安，今天也好好相爱';
+    if (hour < 14) return '午间好，留一点时间给彼此';
+    if (hour < 18) return '下午好，分享今天的小事吧';
+    if (hour < 22) return '晚上好，聊聊今天的心情';
+    return '晚安，把今天温柔收好';
   }
 
   @override
   Widget build(BuildContext context) {
-    final name = widget.user?.displayName ?? '你';
+    if (_loading && _couple.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'LoveSpace',
+              style: TextStyle(
+                fontFamily: 'Georgia',
+                fontSize: 21,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: 16),
+            SizedBox(width: 48, child: LinearProgressIndicator(minHeight: 2)),
+            SizedBox(height: 14),
+            Text('正在打开你们的空间', style: TextStyle(fontSize: 12, color: muted)),
+          ],
+        ),
+      );
+    }
+    final upcoming = _anniversaries.where((a) => a.daysFrom() >= 0).toList()
+      ..sort((a, b) => a.daysFrom().compareTo(b.daysFrom()));
+    final next = upcoming.firstOrNull;
+    final start = DateTime.tryParse(_couple['startDate']?.toString() ?? '');
+    final now = DateTime.now();
+    final days = start == null
+        ? null
+        : DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).difference(DateTime(start.year, start.month, start.day)).inDays;
+    final mine = _moods[_mine?.type], theirs = _moods[_theirMood?.type];
+    final moodText = mine != null && theirs != null
+        ? '${mine.$2} / ${theirs.$2}'
+        : mine != null
+        ? '我：${mine.$2}'
+        : theirs != null
+        ? 'TA：${theirs.$2}'
+        : '今天还没有打卡';
     return RefreshIndicator(
-      onRefresh: _refresh,
-      child: CustomScrollView(
-        slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 12, 8),
-            sliver: SliverToBoxAdapter(
+      onRefresh: _reload,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(2, 6, 2, 14),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'LoveSpace',
+                        style: TextStyle(
+                          fontFamily: 'Georgia',
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: .5,
+                        ),
+                      ),
+                      const SizedBox(height: 4.5),
+                      _text(_greeting, size: 11),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  width: 62,
+                  height: 35,
+                  child: Stack(
+                    children: [
+                      _avatar(widget.user?.avatarUrl ?? ''),
+                      Positioned(
+                        left: 24,
+                        child: _avatar(_partner['avatarUrl']?.toString() ?? ''),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _card(
+            path: '/anniversaries',
+            radius: 19,
+            padding: 18,
+            colors: const [Color(0xFF342D30), Color(0xFF211D1F)],
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 89),
               child: Row(
                 children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          '今天也要好好相爱',
-                          style: Theme.of(context).textTheme.bodyMedium,
+                        _text(
+                          '${widget.user?.displayName ?? '我'} & ${_partner['nickName'] ?? 'TA'}',
+                          size: 11,
+                          color: const Color(0xFFEAA5B1),
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          '你好，$name',
-                          style: Theme.of(context).textTheme.titleLarge,
+                        Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: '${days ?? '—'}',
+                                style: const TextStyle(
+                                  fontSize: 44,
+                                  height: 1.15,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -1.5,
+                                ),
+                              ),
+                              const TextSpan(
+                                text: ' 天',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xB3FFFFFF),
+                                ),
+                              ),
+                            ],
+                          ),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        _text(
+                          start == null
+                              ? '记住相爱的第一天'
+                              : '从 ${_date(start)} 开始，认真相爱',
+                          size: 11,
+                          color: const Color(0x7AFFFFFF),
                         ),
                       ],
                     ),
                   ),
-                  FutureBuilder<int>(
-                    future: _unread,
-                    builder: (context, snapshot) => Badge(
-                      isLabelVisible: (snapshot.data ?? 0) > 0,
-                      label: Text('${snapshot.data ?? 0}'),
-                      child: IconButton(
-                        tooltip: '通知中心',
-                        onPressed: () => context
-                            .push('/notifications')
-                            .then(
-                              (_) => setState(
-                                () => _unread = widget.coreLoopRepository
-                                    .unreadCount(),
-                              ),
-                            ),
-                        icon: const Icon(Icons.notifications_none_rounded),
-                      ),
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0x29FFFFFF)),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: const Color(0xFFFFD7E7),
-                    foregroundImage:
-                        (widget.user?.avatarUrl.isNotEmpty ?? false)
-                        ? NetworkImage(widget.user!.avatarUrl)
-                        : null,
-                    child: const Icon(
-                      Icons.favorite_rounded,
-                      color: LoveSpaceColors.rose,
+                    alignment: Alignment.center,
+                    child: const Text(
+                      '♥',
+                      style: TextStyle(fontSize: 23, color: Color(0xFFED8294)),
                     ),
                   ),
                 ],
               ),
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
-            sliver: SliverToBoxAdapter(
-              child: FutureBuilder<List<Anniversary>>(
-                future: _anniversaries,
-                builder: (context, snapshot) => _AnniversaryHero(
-                  anniversary: snapshot.data?.firstOrNull,
-                  loading: snapshot.connectionState == ConnectionState.waiting,
-                  failed: snapshot.hasError,
-                  onTap: () => context
-                      .push('/anniversaries')
-                      .then(
-                        (_) => setState(
-                          () => _anniversaries = widget.anniversaryRepository
-                              .list(),
-                        ),
-                      ),
+          if (_errors.isNotEmpty)
+            InkWell(
+              onTap: _reload,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: _text(
+                  '${_errors.join('、')}暂时无法读取 · 点按重试',
+                  size: 11,
+                  color: rose,
                 ),
               ),
             ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
-            sliver: SliverToBoxAdapter(
-              child: FutureBuilder<DailyQuestion>(
-                future: _question,
-                builder: (context, snapshot) {
-                  final item = snapshot.data;
-                  final subtitle = item == null
-                      ? (snapshot.hasError ? '暂时无法读取，点按重试' : '正在准备今天的问题…')
-                      : item.bothAnswered
-                      ? '双方已回答，点击揭晓'
-                      : item.myAnswer == null
-                      ? '等待你回答'
-                      : item.partnerAnswered
-                      ? 'TA 已回答，完成后一起揭晓'
-                      : '已提交，等待 TA';
-                  return _WideCard(
-                    icon: Icons.forum_outlined,
-                    eyebrow: item?.category ?? '每日问答',
-                    title: item?.question ?? '今天想更了解彼此一点',
-                    subtitle: subtitle,
-                    onTap: () => context
-                        .push('/daily-question')
-                        .then(
-                          (_) => setState(
-                            () => _question = widget.coreLoopRepository
-                                .getDailyQuestion(),
-                          ),
-                        ),
-                  );
-                },
+          for (final item in _notices)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: _card(
+                path: '/notifications',
+                padding: 12,
+                child: Row(
+                  children: [
+                    const Text('•', style: TextStyle(color: rose)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${item.title} · ${item.content}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11.5),
+                      ),
+                    ),
+                    const Text('›'),
+                  ],
+                ),
               ),
             ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
-            sliver: SliverToBoxAdapter(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: FutureBuilder<MoodEntry?>(
-                      future: _myMood,
-                      builder: (_, snapshot) => _MoodCard(
-                        label: '我的心情',
-                        mood: snapshot.data,
-                        onTap: _openMood,
+          _heading('TODAY', '今天，靠近一点', '进入问答', '/daily-question'),
+          _card(
+            path: '/daily-question',
+            radius: 16,
+            colors: const [Color(0xFFF9E3E7), Color(0xFFF5D9DF)],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 4.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0x94FFFFFF),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: _text(
+                        _question?.category.isNotEmpty == true
+                            ? _question!.category
+                            : '每日一问',
+                        size: 10,
+                        color: const Color(0xFF914D5A),
+                      ),
+                    ),
+                    const Spacer(),
+                    _text(
+                      _question?.bothAnswered == true
+                          ? '已揭晓'
+                          : _question?.myAnswer != null
+                          ? '等 TA 回答'
+                          : _question?.partnerAnswered == true
+                          ? 'TA 已回答'
+                          : '去回答',
+                      size: 11,
+                      color: const Color(0xFF9B6D75),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 56),
+                    child: Text(
+                      _question?.question ?? '留五分钟给彼此，回答今天的问题。',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        height: 1.6,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF342B2E),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FutureBuilder<MoodEntry?>(
-                      future: _partnerMood,
-                      builder: (_, snapshot) => _MoodCard(
-                        label: 'TA 的心情',
-                        mood: snapshot.data,
-                        onTap: _openMood,
-                      ),
+                ),
+                Row(
+                  children: [
+                    _answer('我', _question?.myAnswer != null),
+                    Container(
+                      width: 21,
+                      height: 1,
+                      color: const Color(0x296B444B),
                     ),
-                  ),
-                ],
-              ),
+                    _answer('TA', _question?.partnerAnswered == true),
+                    const Spacer(),
+                    const Text(
+                      '→',
+                      style: TextStyle(fontSize: 19, color: Color(0xFF7F535B)),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
-            sliver: SliverToBoxAdapter(
-              child: Row(
+          const SizedBox(height: 9),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _snapshot(
+                  '今日心情',
+                  '◌',
+                  '${mine?.$1 ?? '–'} / ${theirs?.$1 ?? '–'}',
+                  moodText,
+                  '/mood',
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: _snapshot(
+                  '下个纪念日',
+                  '◇',
+                  next == null ? '去添加' : '${next.daysFrom()} 天',
+                  next?.name ?? '记住重要的日子',
+                  '/anniversaries',
+                  color: const Color(0xFFF1E8DB),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 9),
+          _fitnessCard(),
+          const SizedBox(height: 9),
+          _energyCard(),
+          _heading('MEMORIES', '最近的我们', '时间轴', '/timeline'),
+          if (_moments.isEmpty)
+            _card(
+              path: '/moments?create=1',
+              child: const Row(
                 children: [
                   Expanded(
                     child: Text(
-                      '最近点滴',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                      '记录第一段共同回忆',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF877A7E)),
                     ),
                   ),
-                  TextButton(
-                    onPressed: () => context.go('/moments'),
-                    child: const Text('查看全部'),
-                  ),
+                  Text('＋'),
                 ],
               ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-            sliver: SliverToBoxAdapter(
-              child: FutureBuilder<MomentPageResult>(
-                future: _moments,
-                builder: (context, snapshot) {
-                  final item = snapshot.data?.items.firstOrNull;
-                  if (item == null) {
-                    return _WideCard(
-                      icon: Icons.auto_awesome_outlined,
-                      eyebrow: '共同记录',
-                      title: '还没有点滴',
-                      subtitle: snapshot.hasError
-                          ? '网络恢复后再试，文字草稿会一直保留'
-                          : '写下你们的第一段日常',
-                      onTap: () => context.go('/moments'),
-                    );
-                  }
-                  return _WideCard(
-                    icon: Icons.auto_awesome_outlined,
-                    eyebrow: item.tags.firstOrNull ?? '生活片段',
-                    title: item.title.isEmpty ? '我们的最近一刻' : item.title,
-                    subtitle: item.content.isEmpty
-                        ? '有 ${item.images.length} 张照片'
-                        : item.content,
-                    onTap: () => context.go('/moments'),
+            )
+          else
+            SizedBox(
+              height: 164,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _moments.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 9),
+                itemBuilder: (_, index) {
+                  final item = _moments[index];
+                  return SizedBox(
+                    width: 130,
+                    child: _card(
+                      path: '/timeline',
+                      padding: 6,
+                      radius: 13,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(9.5),
+                            child: item.images.isEmpty
+                                ? Container(
+                                    height: 102.5,
+                                    color: const Color(0xFFF7E9EC),
+                                    alignment: Alignment.center,
+                                    child: const Text(
+                                      '“',
+                                      style: TextStyle(
+                                        fontFamily: 'Georgia',
+                                        fontSize: 37,
+                                        color: Color(0xFFD5A8AF),
+                                      ),
+                                    ),
+                                  )
+                                : Image.network(
+                                    item.images.first,
+                                    width: 118,
+                                    height: 102.5,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) => const SizedBox(
+                                      height: 102.5,
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.broken_image_outlined,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(4, 8.5, 4, 3.5),
+                            child: Text(
+                              item.title.isEmpty ? item.content : item.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: _text(_date(item.createdAt), size: 9.5),
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 },
               ),
             ),
+          _heading('TOGETHER', '一起去做'),
+          LayoutBuilder(
+            builder: (_, constraints) {
+              final columns = constraints.maxWidth >= 700 ? 3 : 2;
+              const actions = [
+                ('＋', '记录此刻', '照片与文字', '/moments?create=1', 0xFFF8DFE4),
+                ('✓', '共同任务', '一起完成', '/tasks', 0xFFE4EDE5),
+                ('⌁', '今天吃什么', '替选择减负', '/menu', 0xFFEFE4D5),
+                ('☆', '愿望清单', '约定未来', '/wishes', 0xFFEAE4F0),
+                ('□', '时光胶囊', '写给未来', '/capsules', 0xFFE1EAF0),
+                ('▧', '共同相册', '收藏回忆', '/album', 0xFFF4E1D8),
+              ];
+              return Wrap(
+                spacing: 9,
+                runSpacing: 9,
+                children: [
+                  for (final item in actions)
+                    SizedBox(
+                      width:
+                          (constraints.maxWidth - 9 * (columns - 1)) / columns,
+                      child: _card(
+                        path: item.$4,
+                        padding: 12,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: Color(item.$5),
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                item.$1,
+                                style: const TextStyle(fontSize: 15),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              item.$2,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            _text(item.$3, size: 10),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         ],
       ),
     );
   }
 
-  Future<void> _openMood() async {
-    await context.push('/mood');
-    setState(() {
-      _myMood = widget.coreLoopRepository.getMyMood();
-      _partnerMood = widget.coreLoopRepository.getPartnerMood();
-    });
-  }
-}
-
-class _AnniversaryHero extends StatelessWidget {
-  const _AnniversaryHero({
-    required this.anniversary,
-    required this.loading,
-    required this.failed,
-    required this.onTap,
-  });
-  final Anniversary? anniversary;
-  final bool loading;
-  final bool failed;
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) {
-    final item = anniversary;
-    final description = failed
-        ? '暂时无法读取，点按重试'
-        : item == null
-        ? '等待一起记录'
-        : item.daysFrom() == 0
-        ? '就是今天'
-        : item.daysFrom() > 0
-        ? '还有 ${item.daysFrom()} 天'
-        : '已经过去 ${item.daysFrom().abs()} 天';
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(28),
-      child: Ink(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFBE185D), Color(0xFFEC4899)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x38BE185D),
-              blurRadius: 28,
-              offset: Offset(0, 14),
-            ),
-          ],
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(28),
-          child: Padding(
-            padding: const EdgeInsets.all(22),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  failed ? Icons.refresh_rounded : Icons.favorite_rounded,
-                  color: Colors.white,
-                  size: 32,
+  Widget _fitnessCard() {
+    final value = _fitness?.teamProgress ?? 0;
+    final copy = value >= 85
+        ? '这周节奏很稳，记得认真恢复'
+        : value >= 60
+        ? '共同节奏正在形成'
+        : value >= 30
+        ? '今天再一起完成一小步'
+        : '从一次打卡开始';
+    return _card(
+      path: '/fitness',
+      padding: 15,
+      colors: const [Color(0xFF456351), Color(0xFF30483B)],
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _text('↗  一起变好', size: 10, color: const Color(0xFFB8D0C0)),
+                    const SizedBox(height: 7),
+                    Text(
+                      '本周共同完成 ${_fitness?.teamProgress ?? '—'}%',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 3.5),
+                    _text(copy, size: 9, color: const Color(0x7AFFFFFF)),
+                  ],
                 ),
-                const SizedBox(height: 26),
-                Text(
-                  item?.name ?? '我们的纪念日',
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  loading ? '正在读取…' : description,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 25,
-                    fontWeight: FontWeight.w800,
+              ),
+              Column(
+                children: [
+                  Text(
+                    '${_fitness?.myStats.workouts ?? '—'}',
+                    style: const TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                  _text('次运动', size: 8.5, color: const Color(0x70FFFFFF)),
+                ],
+              ),
+            ],
           ),
-        ),
+          const SizedBox(height: 12),
+          _track(value, const Color(0xFFA7C9B2), const Color(0x1FFFFFFF)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _text(
+                _fitness?.todayCheckin != null ? '我已打卡' : '我待打卡',
+                size: 9,
+                color: const Color(0xFFC3DACB),
+              ),
+              _text('  ·  '),
+              _text(
+                _fitness?.partnerCheckedIn == true ? 'TA 已打卡' : 'TA 待打卡',
+                size: 9,
+                color: const Color(0xFFC3DACB),
+              ),
+              const Spacer(),
+              _text('→', color: const Color(0xFFB8D0C0)),
+            ],
+          ),
+        ],
       ),
     );
   }
-}
 
-class _WideCard extends StatelessWidget {
-  const _WideCard({
-    required this.icon,
-    required this.eyebrow,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String eyebrow;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) => Card(
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-              child: Icon(icon),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    eyebrow,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w700,
+  Widget _energyCard() {
+    final value = _energy ?? 0;
+    final title = value >= 85
+        ? '默契发光'
+        : value >= 60
+        ? '持续升温'
+        : value >= 30
+        ? '温柔生长'
+        : '正在萌芽';
+    final tip = value >= 85
+        ? '你们正在稳定回应彼此'
+        : value >= 60
+        ? '爱被放进了具体行动里'
+        : value >= 30
+        ? '一点一滴都算数'
+        : '从一次真诚互动开始';
+    return _card(
+      path: '/monthly-report',
+      padding: 15,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _text('本期恋爱能量', size: 10.5),
+                    const SizedBox(height: 4),
+                    Text(
+                      _energy == null ? '等待相遇' : title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    subtitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
+                    const SizedBox(height: 3.5),
+                    _text('$tip · 查看关系月报', size: 10),
+                  ],
+                ),
               ),
-            ),
-            const Icon(Icons.chevron_right_rounded),
-          ],
-        ),
+              Text(
+                '${_energy ?? '—'}%',
+                style: const TextStyle(
+                  fontSize: 26,
+                  color: rose,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _track(value, rose, const Color(0xFFF1EBEC)),
+        ],
       ),
-    ),
-  );
-}
+    );
+  }
 
-class _MoodCard extends StatelessWidget {
-  const _MoodCard({
-    required this.label,
-    required this.mood,
-    required this.onTap,
-  });
-  final String label;
-  final MoodEntry? mood;
-  final VoidCallback onTap;
-  static const labels = {
-    'happy': '开心',
-    'love': '心动',
-    'calm': '平静',
-    'excited': '兴奋',
-    'miss': '想念',
-    'grateful': '感恩',
-    'tired': '疲惫',
-    'anxious': '焦虑',
-    'sad': '难过',
-    'angry': '生气',
-  };
-  @override
-  Widget build(BuildContext context) => Card(
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _snapshot(
+    String title,
+    String symbol,
+    String value,
+    String note,
+    String path, {
+    Color? color,
+  }) => _card(
+    path: path,
+    padding: 13,
+    color: color,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Icon(
-              mood == null
-                  ? Icons.mood_outlined
-                  : Icons.favorite_border_rounded,
-              color: Theme.of(context).colorScheme.primary,
+            Expanded(
+              child: _text(title, size: 11, color: const Color(0xFF796E71)),
             ),
-            const SizedBox(height: 12),
-            Text(label, style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: 3),
-            Text(
-              mood == null ? '等待记录' : labels[mood!.type] ?? mood!.type,
-              maxLines: 1,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
-            ),
+            _text(symbol, size: 14),
           ],
         ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w600),
+          ),
+        ),
+        Text(
+          note,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 10.5, color: muted),
+        ),
+      ],
+    ),
+  );
+  Widget _heading(
+    String kicker,
+    String title, [
+    String? action,
+    String? path,
+  ]) => Padding(
+    padding: const EdgeInsets.fromLTRB(2, 24, 2, 10),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                kicker,
+                style: const TextStyle(
+                  color: Color(0xFFA05A67),
+                  fontSize: 9.5,
+                  letterSpacing: 1.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 3.5),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (action != null)
+          InkWell(
+            onTap: () => _open(path!),
+            child: Padding(
+              padding: const EdgeInsets.all(5),
+              child: _text(action, size: 11.5, color: const Color(0xFF8F7F83)),
+            ),
+          ),
+      ],
+    ),
+  );
+  Widget _card({
+    required Widget child,
+    String? path,
+    Color? color,
+    List<Color>? colors,
+    double radius = 14,
+    double padding = 16,
+  }) => Container(
+    decoration: BoxDecoration(
+      color: colors == null
+          ? color ?? Theme.of(context).colorScheme.surface
+          : null,
+      gradient: colors == null
+          ? null
+          : LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: colors,
+            ),
+      borderRadius: BorderRadius.circular(radius),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x0C3C282D),
+          offset: Offset(0, 4),
+          blurRadius: 14,
+        ),
+      ],
+    ),
+    child: Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: path == null ? null : () => _open(path),
+        borderRadius: BorderRadius.circular(radius),
+        child: Padding(padding: EdgeInsets.all(padding), child: child),
       ),
     ),
   );
+  Widget _text(String text, {double size = 12, Color color = muted}) => Text(
+    text,
+    style: TextStyle(fontSize: size, color: color),
+  );
+  Widget _track(int percent, Color color, Color background) => ClipRRect(
+    borderRadius: BorderRadius.circular(99),
+    child: LinearProgressIndicator(
+      value: percent.clamp(0, 100) / 100,
+      minHeight: 3.5,
+      backgroundColor: background,
+      color: color,
+    ),
+  );
+  Widget _avatar(String url) => Container(
+    width: 35,
+    height: 35,
+    padding: const EdgeInsets.all(2),
+    decoration: const BoxDecoration(
+      color: Color(0xFFF8F5F3),
+      shape: BoxShape.circle,
+    ),
+    child: CircleAvatar(
+      backgroundColor: const Color(0xFFEDE2D8),
+      backgroundImage: const AssetImage('assets/reference/default-avatar.png'),
+      foregroundImage: url.isEmpty ? null : NetworkImage(url),
+    ),
+  );
+  Widget _answer(String text, bool done) => Container(
+    width: 23,
+    height: 23,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: done ? rose : const Color(0x94FFFFFF),
+    ),
+    child: Text(
+      text,
+      style: TextStyle(
+        fontSize: 9.5,
+        color: done ? Colors.white : const Color(0xFFA28D91),
+      ),
+    ),
+  );
+  static String _date(DateTime value) =>
+      '${value.year}.${value.month.toString().padLeft(2, '0')}.${value.day.toString().padLeft(2, '0')}';
 }

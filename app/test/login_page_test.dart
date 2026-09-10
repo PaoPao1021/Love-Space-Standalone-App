@@ -13,9 +13,9 @@ void main() {
     await _setSurface(tester, const Size(375, 667));
     await tester.pumpWidget(_testApp(textScale: 1));
 
-    expect(find.text('欢迎回来'), findsOneWidget);
+    expect(find.text('先告诉我你是谁~'), findsOneWidget);
     expect(find.byType(TextFormField), findsNWidgets(2));
-    expect(find.widgetWithText(FilledButton, '进入 LoveSpace'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, '开始使用'), findsOneWidget);
   });
 
   testWidgets('login reflows in phone landscape', (tester) async {
@@ -30,7 +30,7 @@ void main() {
     await _setSurface(tester, const Size(375, 667));
     await tester.pumpWidget(_testApp(textScale: 2, dark: true));
 
-    expect(find.text('欢迎回来'), findsOneWidget);
+    expect(find.text('先告诉我你是谁~'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

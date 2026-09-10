@@ -34,7 +34,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('一起看海'), findsOneWidget);
-    expect(find.text('开始行动'), findsOneWidget);
+    expect(find.text('⭐'), findsOneWidget);
+    await tester.tap(find.text('一起看海'));
+    await tester.pumpAndSettle();
+    expect(find.text('💫'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -76,16 +79,28 @@ class _FakeMemoriesRepository extends MemoriesRepository {
   _FakeMemoriesRepository()
     : super(apiClient: ApiClient(tokenStore: TokenStore()));
 
+  String wishStatus = 'todo';
+
   @override
   Future<List<WishEntry>> wishes() async => [
     WishEntry.fromJson({
       '_id': 'wish-1',
       'title': '一起看海',
       'description': '等天气暖和的时候出发',
-      'status': 'todo',
+      'status': wishStatus,
       'createdAt': '2026-09-07T10:00:00Z',
     }),
   ];
+
+  @override
+  Future<void> updateWish(
+    String id, {
+    String? title,
+    String? description,
+    String? status,
+  }) async {
+    if (status != null) wishStatus = status;
+  }
 
   @override
   Future<CapsuleList> capsules() async => CapsuleList(

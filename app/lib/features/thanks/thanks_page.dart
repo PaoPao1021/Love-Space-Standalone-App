@@ -34,10 +34,10 @@ class _ThanksPageState extends State<ThanksPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('感谢墙')),
-    floatingActionButton: FloatingActionButton.extended(
+    floatingActionButton: FloatingActionButton(
       onPressed: _add,
-      icon: const Icon(Icons.add_rounded),
-      label: const Text('记录感谢'),
+      tooltip: '记录感谢',
+      child: const Icon(Icons.add_rounded),
     ),
     body: SafeArea(
       child: Center(
@@ -84,25 +84,41 @@ class _ThanksPageState extends State<ThanksPage> {
                   await _items;
                 },
                 child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-                  itemCount: items.length,
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
+                  itemCount: items.length + 1,
                   separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (_, index) {
-                    final item = items[index];
-                    return Card(
+                    if (index == 0) return const _ThanksHeader();
+                    final item = items[index - 1];
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x0d32242a),
+                            blurRadius: 12,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
                       child: Padding(
                         padding: const EdgeInsets.all(18),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.format_quote_rounded),
-                            const SizedBox(height: 8),
                             Text(
                               item.content,
-                              style: Theme.of(context).textTheme.titleMedium,
+                              style: const TextStyle(fontSize: 16, height: 1.7),
                             ),
                             const SizedBox(height: 10),
-                            Text(_date(item.eventDate ?? item.createdAt)),
+                            Text(
+                              _date(item.eventDate ?? item.createdAt),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xffaaa0a2),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -114,6 +130,33 @@ class _ThanksPageState extends State<ThanksPage> {
           ),
         ),
       ),
+    ),
+  );
+}
+
+class _ThanksHeader extends StatelessWidget {
+  const _ThanksHeader();
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.only(bottom: 26),
+    child: Column(
+      children: [
+        Text('🙏', style: TextStyle(fontSize: 48)),
+        SizedBox(height: 6),
+        Text(
+          '感谢墙',
+          style: TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1,
+          ),
+        ),
+        SizedBox(height: 4),
+        Text(
+          '记录对方做过的温暖小事',
+          style: TextStyle(fontSize: 13, color: Color(0xffaaa0a2)),
+        ),
+      ],
     ),
   );
 }

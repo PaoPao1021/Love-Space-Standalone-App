@@ -361,6 +361,69 @@ class _MenuPageState extends State<MenuPage>
     ),
   );
 
+  Future<void> _showOrderMode() async {
+    final dishes = await widget.repository.dishes();
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      builder: (context) => SizedBox(
+        height: MediaQuery.sizeOf(context).height * .72,
+        child: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Text(
+                '想吃什么？点TA做',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              ),
+            ),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                itemCount: dishes.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (_, index) {
+                  final dish = dishes[index];
+                  return ListTile(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    tileColor: const Color(0xFFF7F2ED),
+                    leading: const Text('🍽️', style: TextStyle(fontSize: 24)),
+                    title: Text(dish.name),
+                    subtitle: Text(
+                      '${dish.category} · ${dish.rating.toStringAsFixed(0)}⭐',
+                    ),
+                    trailing: const Icon(Icons.add_circle_outline_rounded),
+                    onTap: () async {
+                      await _increaseDish(dish);
+                      if (context.mounted) Navigator.pop(context);
+                    },
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: FilledButton(
+                onPressed: _cartCount() == 0
+                    ? null
+                    : () {
+                        Navigator.pop(context);
+                        _showCart();
+                      },
+                child: Text(
+                  _cartCount() == 0 ? '选择菜品后下单' : '查看已选 ${_cartCount()} 份',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _tabs.dispose();
@@ -434,25 +497,80 @@ class _MenuPageState extends State<MenuPage>
                 },
                 child: ListView(
                   padding: EdgeInsets.fromLTRB(
-                    16,
+                    28,
                     14,
-                    16,
+                    28,
                     _cartCount() > 0 ? 118 : 24,
                   ),
                   children: [
-                    TextField(
-                      controller: _search,
-                      textInputAction: TextInputAction.search,
-                      onSubmitted: (_) => _reloadDishes(),
-                      decoration: InputDecoration(
-                        labelText: '搜索菜品',
-                        prefixIcon: const Icon(Icons.search_rounded),
-                        suffixIcon: IconButton(
-                          tooltip: '开始搜索',
-                          onPressed: _reloadDishes,
-                          icon: const Icon(Icons.arrow_forward_rounded),
+                    InkWell(
+                      onTap: _showOrderMode,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Ink(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFE85D75), Color(0xFFF08A9B)],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Row(
+                          children: [
+                            Text('👨‍🍳', style: TextStyle(fontSize: 28)),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '想吃什么？点TA做',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 17,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    '选好发给TA，让TA给你做~',
+                                    style: TextStyle(
+                                      color: Color(0xDDFFFFFF),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              '›',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _recommend,
+                            icon: const Text('🤔'),
+                            label: const Text('随机推荐'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _addDish,
+                            icon: const Text('➕'),
+                            label: const Text('添加菜品'),
+                          ),
+                        ),
+                      ],
                     ),
                     if (categories.isNotEmpty) ...[
                       const SizedBox(height: 12),
@@ -461,7 +579,7 @@ class _MenuPageState extends State<MenuPage>
                         child: Row(
                           children: [
                             ChoiceChip(
-                              label: const Text('全部'),
+                              label: const Text('🍽️ 全部'),
                               selected: _category.isEmpty,
                               onSelected: (_) {
                                 _category = '';
@@ -473,7 +591,7 @@ class _MenuPageState extends State<MenuPage>
                               (value) => Padding(
                                 padding: const EdgeInsets.only(right: 8),
                                 child: ChoiceChip(
-                                  label: Text(value),
+                                  label: Text('🍽️ $value'),
                                   selected: _category == value,
                                   onSelected: (_) {
                                     _category = value;
@@ -615,17 +733,34 @@ class _DishCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     child: Padding(
       padding: const EdgeInsets.all(14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 25,
-            foregroundImage: dish.imageUrl.isEmpty
-                ? null
-                : NetworkImage(dish.imageUrl),
-            child: const Icon(Icons.restaurant_outlined),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              width: 54,
+              height: 54,
+              child: dish.imageUrl.isEmpty
+                  ? const ColoredBox(
+                      color: Color(0xFFF7F2ED),
+                      child: Center(
+                        child: Text('🍽️', style: TextStyle(fontSize: 25)),
+                      ),
+                    )
+                  : Image.network(
+                      dish.imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => const ColoredBox(
+                        color: Color(0xFFF7F2ED),
+                        child: Center(child: Text('🍽️')),
+                      ),
+                    ),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -653,7 +788,11 @@ class _DishCard extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  '${dish.category} · ${MenuPageStateMoney.value(dish.price)} · ${dish.rating.toStringAsFixed(0)} 分',
+                  '${dish.category} · ${dish.rating.toStringAsFixed(0)}⭐',
+                  style: const TextStyle(
+                    color: Color(0xFFA05A67),
+                    fontSize: 12,
+                  ),
                 ),
                 if (dish.description.isNotEmpty) ...[
                   const SizedBox(height: 5),

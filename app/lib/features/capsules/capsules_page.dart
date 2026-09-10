@@ -22,22 +22,10 @@ class CapsulesPage extends StatefulWidget {
 }
 
 class _CapsulesPageState extends State<CapsulesPage> {
-  bool _showLocked = true;
   late Future<CapsuleList> _capsules = _load();
 
   Future<CapsuleList> _load() async {
     final result = await widget.repository.capsules();
-    final target = widget.targetCapsuleId;
-    if (target != null && target.isNotEmpty) {
-      if (result.unlocked.any((item) => item.id == target)) {
-        _showLocked = false;
-      } else if (!result.locked.any((item) => item.id == target)) {
-        try {
-          final item = await widget.repository.capsule(target);
-          _showLocked = !item.unlocked;
-        } catch (_) {}
-      }
-    }
     return result;
   }
 
@@ -52,7 +40,6 @@ class _CapsulesPageState extends State<CapsulesPage> {
           _CapsuleEditor(repository: widget.repository, cache: widget.cache),
     );
     if (changed == true) {
-      _showLocked = true;
       _reload();
     }
   }
@@ -97,29 +84,6 @@ class _CapsulesPageState extends State<CapsulesPage> {
           constraints: const BoxConstraints(maxWidth: 760),
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment(
-                        value: true,
-                        icon: Icon(Icons.lock_outline_rounded),
-                        label: Text('等待开启'),
-                      ),
-                      ButtonSegment(
-                        value: false,
-                        icon: Icon(Icons.lock_open_rounded),
-                        label: Text('已经开启'),
-                      ),
-                    ],
-                    selected: {_showLocked},
-                    onSelectionChanged: (value) =>
-                        setState(() => _showLocked = value.first),
-                  ),
-                ),
-              ),
               Expanded(
                 child: FutureBuilder<CapsuleList>(
                   future: _capsules,
@@ -138,30 +102,78 @@ class _CapsulesPageState extends State<CapsulesPage> {
                     final result =
                         snapshot.data ??
                         const CapsuleList(locked: [], unlocked: []);
-                    final items = _showLocked ? result.locked : result.unlocked;
-                    if (items.isEmpty) {
-                      return _CapsuleEmpty(
-                        locked: _showLocked,
-                        onCreate: _create,
-                      );
+                    if (result.locked.isEmpty && result.unlocked.isEmpty) {
+                      return _CapsuleEmpty(locked: true, onCreate: _create);
                     }
                     return RefreshIndicator(
                       onRefresh: () async {
                         _reload();
                         await _capsules;
                       },
-                      child: ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-                        itemCount: items.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 10),
-                        itemBuilder: (_, index) {
-                          final item = items[index];
-                          return _CapsuleCard(
-                            item: item,
-                            highlighted: item.id == widget.targetCapsuleId,
-                            onTap: () => _open(item),
-                          );
-                        },
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
+                        children: [
+                          if (result.locked.isNotEmpty) ...[
+                            const _CapsuleSectionTitle('🔒 等待开启'),
+                            const SizedBox(height: 10),
+                            ...result.locked.map(
+                              (item) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _CapsuleCard(
+                                  item: item,
+                                  highlighted:
+                                      item.id == widget.targetCapsuleId,
+                                  onTap: () {},
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                          ],
+                          if (result.unlocked.isNotEmpty) ...[
+                            const _CapsuleSectionTitle('📬 已开启'),
+                            const SizedBox(height: 10),
+                            ...result.unlocked.map(
+                              (item) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _CapsuleCard(
+                                  item: item,
+                                  highlighted:
+                                      item.id == widget.targetCapsuleId,
+                                  onTap: () => _open(item),
+                                ),
+                              ),
+                            ),
+                          ],
+                          InkWell(
+                            onTap: _create,
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 18),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: const Color(0x4dc8b4a0),
+                                  style: BorderStyle.solid,
+                                ),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text('➕', style: TextStyle(fontSize: 18)),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    '写一封时光胶囊',
+                                    style: TextStyle(
+                                      color: Color(0xffa05a67),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   },
@@ -177,6 +189,16 @@ class _CapsulesPageState extends State<CapsulesPage> {
       icon: const Icon(Icons.edit_outlined),
       label: const Text('写一封胶囊'),
     ),
+  );
+}
+
+class _CapsuleSectionTitle extends StatelessWidget {
+  const _CapsuleSectionTitle(this.text);
+  final String text;
+  @override
+  Widget build(BuildContext context) => Text(
+    text,
+    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
   );
 }
 
@@ -213,11 +235,7 @@ class _CapsuleCard extends StatelessWidget {
                   backgroundColor: Theme.of(
                     context,
                   ).colorScheme.secondaryContainer,
-                  child: Icon(
-                    item.unlocked
-                        ? Icons.mark_email_read_outlined
-                        : Icons.lock_clock_outlined,
-                  ),
+                  child: const Text('💌', style: TextStyle(fontSize: 24)),
                 ),
                 const SizedBox(width: 14),
                 Expanded(

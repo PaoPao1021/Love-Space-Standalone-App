@@ -10,12 +10,14 @@ class AlbumDetailPage extends StatefulWidget {
     required this.repository,
     required this.albumId,
     required this.albumName,
+    this.uploadOnOpen = false,
     super.key,
   });
 
   final AlbumRepository repository;
   final String albumId;
   final String albumName;
+  final bool uploadOnOpen;
 
   @override
   State<AlbumDetailPage> createState() => _AlbumDetailPageState();
@@ -37,6 +39,11 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   void initState() {
     super.initState();
     _load(reset: true);
+    if (widget.uploadOnOpen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _pickAndUpload();
+      });
+    }
   }
 
   Future<void> _load({required bool reset}) async {
@@ -359,6 +366,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F5F3),
       appBar: AppBar(
         title: Text(widget.albumName),
         actions: [
@@ -435,12 +443,12 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                padding: const EdgeInsets.fromLTRB(14, 18, 14, 8),
                 sliver: SliverGrid(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: columns,
-                    mainAxisSpacing: 6,
-                    crossAxisSpacing: 6,
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
                   ),
                   delegate: SliverChildBuilderDelegate((context, index) {
                     final photo = _photos[index];
@@ -491,8 +499,8 @@ class _PhotoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Theme.of(context).colorScheme.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(14),
+      color: const Color(0xFFF7F2ED),
+      borderRadius: BorderRadius.circular(12),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,

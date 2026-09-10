@@ -22,7 +22,6 @@ class WishesPage extends StatefulWidget {
 }
 
 class _WishesPageState extends State<WishesPage> {
-  String _status = 'todo';
   bool _busy = false;
   late Future<List<WishEntry>> _wishes = _load();
 
@@ -30,14 +29,6 @@ class _WishesPageState extends State<WishesPage> {
     final items = [...await widget.repository.wishes()];
     final target = widget.targetWishId;
     if (target != null && target.isNotEmpty) {
-      WishEntry? found;
-      for (final item in items) {
-        if (item.id == target) {
-          found = item;
-          break;
-        }
-      }
-      if (found != null) _status = found.status;
       items.sort((a, b) {
         if (a.id == target) return -1;
         if (b.id == target) return 1;
@@ -125,18 +116,34 @@ class _WishesPageState extends State<WishesPage> {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(value: 'todo', label: Text('想一起做')),
-                      ButtonSegment(value: 'doing', label: Text('进行中')),
-                      ButtonSegment(value: 'done', label: Text('已实现')),
-                    ],
-                    selected: {_status},
-                    onSelectionChanged: (value) =>
-                        setState(() => _status = value.first),
+                padding: const EdgeInsets.fromLTRB(28, 8, 28, 12),
+                child: InkWell(
+                  onTap: _busy ? null : _edit,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Ink(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0x4DC8B4A0),
+                        style: BorderStyle.solid,
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('➕', style: TextStyle(fontSize: 20)),
+                        SizedBox(width: 8),
+                        Text(
+                          '许个愿望',
+                          style: TextStyle(
+                            color: Color(0xFFA05A67),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -155,11 +162,9 @@ class _WishesPageState extends State<WishesPage> {
                         ),
                       );
                     }
-                    final items = (snapshot.data ?? const [])
-                        .where((item) => item.status == _status)
-                        .toList(growable: false);
+                    final items = snapshot.data ?? const [];
                     if (items.isEmpty) {
-                      return _WishEmpty(status: _status, onCreate: _edit);
+                      return _WishEmpty(onCreate: _edit);
                     }
                     return RefreshIndicator(
                       onRefresh: () async {
@@ -167,7 +172,7 @@ class _WishesPageState extends State<WishesPage> {
                         await _wishes;
                       },
                       child: ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                        padding: const EdgeInsets.fromLTRB(28, 0, 28, 96),
                         itemCount: items.length,
                         separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {
@@ -191,10 +196,17 @@ class _WishesPageState extends State<WishesPage> {
         ),
       ),
     ),
-    floatingActionButton: FloatingActionButton.extended(
+    floatingActionButton: FloatingActionButton(
       onPressed: _busy ? null : _edit,
-      icon: const Icon(Icons.favorite_border_rounded),
-      label: const Text('写下愿望'),
+      backgroundColor: const Color(0xFFE85D75),
+      child: const Text(
+        '+',
+        style: TextStyle(
+          fontSize: 30,
+          color: Colors.white,
+          fontWeight: FontWeight.w300,
+        ),
+      ),
     ),
   );
 }
@@ -217,81 +229,80 @@ class _WishCard extends StatelessWidget {
   final ValueChanged<String> onStatus;
 
   @override
-  Widget build(BuildContext context) => Card(
-    color: highlighted
-        ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5)
-        : null,
-    clipBehavior: Clip.antiAlias,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (item.imageUrl.isNotEmpty)
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 240),
-            child: Image.network(
-              item.imageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+  Widget build(BuildContext context) => InkWell(
+    onTap: busy
+        ? null
+        : () => onStatus(switch (item.status) {
+            'todo' => 'doing',
+            'doing' => 'done',
+            _ => 'todo',
+          }),
+    borderRadius: BorderRadius.circular(12),
+    child: Card(
+      elevation: 0,
+      color: highlighted
+          ? const Color(0xFFF9E7EA)
+          : item.status == 'done'
+          ? const Color(0xFFF8F5F2)
+          : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (item.imageUrl.isNotEmpty)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 240),
+              child: Image.network(
+                item.imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              ),
             ),
-          ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      item.title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      item.status == 'done'
+                          ? '🌟'
+                          : item.status == 'doing'
+                          ? '💫'
+                          : '⭐',
+                      style: const TextStyle(fontSize: 23),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        item.title,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
                     ),
-                  ),
-                  PopupMenuButton<String>(
-                    tooltip: '更多操作',
-                    enabled: !busy,
-                    onSelected: (value) =>
-                        value == 'edit' ? onEdit() : onDelete(),
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'edit', child: Text('编辑')),
-                      PopupMenuItem(value: 'delete', child: Text('删除')),
-                    ],
-                  ),
-                ],
-              ),
-              if (item.description.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(item.description),
-              ],
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.tonalIcon(
-                  onPressed: busy
-                      ? null
-                      : () => onStatus(switch (item.status) {
-                          'todo' => 'doing',
-                          'doing' => 'done',
-                          _ => 'todo',
-                        }),
-                  icon: Icon(switch (item.status) {
-                    'todo' => Icons.play_arrow_rounded,
-                    'doing' => Icons.done_all_rounded,
-                    _ => Icons.replay_rounded,
-                  }),
-                  label: Text(switch (item.status) {
-                    'todo' => '开始行动',
-                    'doing' => '标记为已实现',
-                    _ => '重新放回愿望单',
-                  }),
+                    PopupMenuButton<String>(
+                      tooltip: '更多操作',
+                      enabled: !busy,
+                      onSelected: (value) =>
+                          value == 'edit' ? onEdit() : onDelete(),
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(value: 'edit', child: Text('编辑')),
+                        PopupMenuItem(value: 'delete', child: Text('删除')),
+                      ],
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                if (item.description.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(item.description),
+                ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }
@@ -458,8 +469,7 @@ class _WishEditorState extends State<_WishEditor> {
 }
 
 class _WishEmpty extends StatelessWidget {
-  const _WishEmpty({required this.status, required this.onCreate});
-  final String status;
+  const _WishEmpty({required this.onCreate});
   final VoidCallback onCreate;
 
   @override
@@ -471,15 +481,11 @@ class _WishEmpty extends StatelessWidget {
         children: [
           const Icon(Icons.favorite_border_rounded, size: 56),
           const SizedBox(height: 14),
-          Text(switch (status) {
-            'doing' => '还没有正在实现的愿望',
-            'done' => '第一个实现的愿望正在路上',
-            _ => '一起写下想去的地方、想做的小事',
-          }),
-          if (status == 'todo') ...[
-            const SizedBox(height: 16),
-            FilledButton(onPressed: onCreate, child: const Text('写下愿望')),
-          ],
+          const Text('还没有愿望'),
+          const SizedBox(height: 8),
+          const Text('一起写下想做的事吧~'),
+          const SizedBox(height: 16),
+          FilledButton(onPressed: onCreate, child: const Text('写下愿望')),
         ],
       ),
     ),

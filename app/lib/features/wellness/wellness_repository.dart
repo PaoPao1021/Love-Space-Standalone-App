@@ -52,6 +52,22 @@ class WellnessRepository {
   Future<void> createChallenge(String presetId) =>
       _fitness('createChallenge', {'presetId': presetId});
 
+  Future<void> checkInWorkouts({
+    required List<WorkoutEntry> workouts,
+    required int steps,
+    required int water,
+    required double sleep,
+    required bool healthyMeal,
+    double? weight,
+  }) => _fitness('checkIn', {
+    'workouts': workouts.map((entry) => entry.toJson()).toList(),
+    'steps': steps,
+    'water': water,
+    'sleep': sleep,
+    'healthyMeal': healthyMeal,
+    'weight': ?weight,
+  });
+
   Future<WeeklyFitnessReport> weeklyReport(int offset) async =>
       WeeklyFitnessReport.fromJson(
         await _fitness('weeklyReport', {'offset': offset}),
@@ -94,6 +110,7 @@ class FitnessDashboard {
     this.age,
     this.biologicalSex = '',
     this.nutritionPlan = const NutritionPlan(),
+    this.partnerToday,
   });
 
   factory FitnessDashboard.fromJson(Map<String, dynamic> json) {
@@ -119,6 +136,9 @@ class FitnessDashboard {
           ? null
           : DailyCheckin.fromJson(_map(json['todayCheckin'])),
       partnerCheckedIn: json['partnerCheckedIn'] as bool? ?? false,
+      partnerToday: json['partnerToday'] == null
+          ? null
+          : DailyCheckin.fromJson(_map(json['partnerToday'])),
       challenges: _maps(
         json['challenges'],
       ).map(FitnessChallenge.fromJson).toList(growable: false),
@@ -146,6 +166,7 @@ class FitnessDashboard {
   final int? age;
   final String biologicalSex;
   final NutritionPlan nutritionPlan;
+  final DailyCheckin? partnerToday;
 }
 
 class NutritionPlan {
@@ -156,6 +177,14 @@ class NutritionPlan {
     this.summary = '',
     this.macros = const [],
     this.disclaimer = '',
+    this.bmr,
+    this.bmrMessage = '',
+    this.bmrFormula = '',
+    this.bmrNote = '',
+    this.intensity = '',
+    this.workoutCalories = 0,
+    this.trainingRecovery = 0,
+    this.foodGroups = const [],
   });
   factory NutritionPlan.fromJson(Map<String, dynamic> json) => NutritionPlan(
     ready: json['ready'] as bool? ?? false,
@@ -164,6 +193,18 @@ class NutritionPlan {
     summary: _text(json['summary']),
     macros: _maps(json['macros']).map(NutritionMacro.fromJson).toList(),
     disclaimer: _text(json['disclaimer']),
+    bmr: _map(json['bmr'])['ready'] == true
+        ? _nullableInteger(_map(json['bmr'])['value'])
+        : null,
+    bmrMessage: _text(_map(json['bmr'])['message']),
+    bmrFormula: _text(_map(json['bmr'])['formula']),
+    bmrNote: _text(_map(json['bmr'])['note']),
+    intensity: _text(json['intensity']),
+    workoutCalories: _integer(json['workoutCalories']),
+    trainingRecovery: _integer(json['trainingRecovery']),
+    foodGroups: _maps(
+      json['foodGroups'],
+    ).map(NutritionFoodGroup.fromJson).toList(),
   );
   final bool ready;
   final String message;
@@ -171,16 +212,50 @@ class NutritionPlan {
   final String summary;
   final List<NutritionMacro> macros;
   final String disclaimer;
+  final int? bmr;
+  final String bmrMessage;
+  final String bmrFormula;
+  final String bmrNote;
+  final String intensity;
+  final int workoutCalories;
+  final int trainingRecovery;
+  final List<NutritionFoodGroup> foodGroups;
+}
+
+class NutritionFoodGroup {
+  const NutritionFoodGroup({
+    required this.label,
+    required this.foods,
+    required this.note,
+  });
+  factory NutritionFoodGroup.fromJson(Map<String, dynamic> json) =>
+      NutritionFoodGroup(
+        label: _text(json['name']),
+        foods: _text(json['foods']),
+        note: _text(json['note']),
+      );
+  final String label;
+  final String foods;
+  final String note;
 }
 
 class NutritionMacro {
-  const NutritionMacro({required this.name, required this.grams});
+  const NutritionMacro({
+    required this.name,
+    required this.grams,
+    this.percent = 0,
+    this.color = '',
+  });
   factory NutritionMacro.fromJson(Map<String, dynamic> json) => NutritionMacro(
     name: _text(json['label'], _text(json['name'])),
     grams: _integer(json['grams'], _integer(json['value'])),
+    percent: _integer(json['ratio']),
+    color: _text(json['color']),
   );
   final String name;
   final int grams;
+  final int percent;
+  final String color;
 }
 
 class FitnessChallenge {
@@ -232,6 +307,10 @@ class FitnessStats {
     required this.workouts,
     required this.minutes,
     required this.totalSteps,
+    this.calories = 0,
+    this.latestWeight,
+    this.weightChange,
+    this.weightTrendVisible = false,
   });
   factory FitnessStats.fromJson(Map<String, dynamic> json) => FitnessStats(
     progress: _integer(json['progress']),
@@ -239,12 +318,49 @@ class FitnessStats {
     workouts: _integer(json['workouts']),
     minutes: _integer(json['minutes']),
     totalSteps: _integer(json['totalSteps']),
+    calories: _integer(json['calories']),
+    latestWeight: _nullableNumber(json['latestWeight']),
+    weightChange: _nullableNumber(json['weightChange']),
+    weightTrendVisible: json.containsKey('weightChange'),
   );
   final int progress;
   final int checkinDays;
   final int workouts;
   final int minutes;
   final int totalSteps;
+  final int calories;
+  final double? latestWeight;
+  final double? weightChange;
+  final bool weightTrendVisible;
+}
+
+class WorkoutEntry {
+  const WorkoutEntry({
+    required this.id,
+    required this.type,
+    required this.startTime,
+    required this.minutes,
+    required this.calories,
+  });
+  factory WorkoutEntry.fromJson(Map<String, dynamic> json) => WorkoutEntry(
+    id: _text(json['id']),
+    type: _text(json['type']),
+    startTime: _text(json['startTime']),
+    minutes: _integer(json['minutes']),
+    calories: _integer(json['calories']),
+  );
+  final String id;
+  final String type;
+  final String startTime;
+  final int minutes;
+  final int calories;
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'type': type,
+    'startTime': startTime,
+    'minutes': minutes,
+    'calories': calories,
+  };
 }
 
 class DailyCheckin {
@@ -256,6 +372,8 @@ class DailyCheckin {
     required this.sleep,
     required this.healthyMeal,
     this.weight,
+    this.workouts = const [],
+    this.calories = 0,
   });
   factory DailyCheckin.fromJson(Map<String, dynamic> json) => DailyCheckin(
     workoutType: _text(json['workoutType'], 'rest'),
@@ -265,6 +383,8 @@ class DailyCheckin {
     sleep: _number(json['sleep']),
     healthyMeal: json['healthyMeal'] as bool? ?? false,
     weight: _nullableNumber(json['weight']),
+    workouts: _maps(json['workouts']).map(WorkoutEntry.fromJson).toList(),
+    calories: _integer(json['calories']),
   );
   final String workoutType;
   final int minutes;
@@ -273,6 +393,8 @@ class DailyCheckin {
   final double sleep;
   final bool healthyMeal;
   final double? weight;
+  final List<WorkoutEntry> workouts;
+  final int calories;
 }
 
 class MonthlyReport {
@@ -285,6 +407,8 @@ class MonthlyReport {
     required this.moments,
     required this.photos,
     required this.points,
+    this.topMood = '',
+    this.anniversaries = const [],
   });
   factory MonthlyReport.fromJson(Map<String, dynamic> json) {
     final report = _map(json['report']);
@@ -301,6 +425,10 @@ class MonthlyReport {
       moments: _integer(moments['count']),
       photos: _integer(moments['photos']),
       points: _integer(points['total']),
+      topMood: _text(mood['topMood']),
+      anniversaries: _maps(
+        report['anniversaries'],
+      ).map(MonthlyAnniversary.fromJson).toList(growable: false),
     );
   }
   final int year;
@@ -311,6 +439,16 @@ class MonthlyReport {
   final int moments;
   final int photos;
   final int points;
+  final String topMood;
+  final List<MonthlyAnniversary> anniversaries;
+}
+
+class MonthlyAnniversary {
+  const MonthlyAnniversary({required this.name, required this.date});
+  factory MonthlyAnniversary.fromJson(Map<String, dynamic> json) =>
+      MonthlyAnniversary(name: _text(json['name']), date: _text(json['date']));
+  final String name;
+  final String date;
 }
 
 class WeeklyFitnessReport {
@@ -363,14 +501,20 @@ class WeeklyFitnessReport {
 }
 
 class WeeklyFitnessMember {
-  const WeeklyFitnessMember({required this.name, required this.stats});
+  const WeeklyFitnessMember({
+    required this.name,
+    required this.stats,
+    this.isMe = false,
+  });
   factory WeeklyFitnessMember.fromJson(Map<String, dynamic> json) =>
       WeeklyFitnessMember(
         name: _text(json['name'], 'TA'),
         stats: FitnessStats.fromJson(_map(json['stats'])),
+        isMe: json['isMe'] == true,
       );
   final String name;
   final FitnessStats stats;
+  final bool isMe;
 }
 
 Map<String, dynamic> _map(Object? value) =>

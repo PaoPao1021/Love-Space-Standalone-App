@@ -67,14 +67,49 @@ class _AnniversaryPageState extends State<AnniversaryPage> {
     }
   }
 
+  Future<void> _showDetail(Anniversary item) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        final days = item.daysFrom();
+        final count = days == 0 ? '就是今天' : days > 0 ? '$days 天后' : '${days.abs()} 天前';
+        return SafeArea(child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 26),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(_AnniversaryCard._emojiFor(item.type), style: const TextStyle(fontSize: 48)),
+            const SizedBox(height: 10),
+            Text(item.name, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 5),
+            Text(_AnniversaryCard._formatDate(item.date), style: const TextStyle(color: Color(0xFF948A8D))),
+            const SizedBox(height: 18),
+            Text(count, style: const TextStyle(color: Color(0xFFA05A67), fontSize: 28, fontWeight: FontWeight.w800)),
+            if (item.note.isNotEmpty) ...[const SizedBox(height: 14), Text(item.note, textAlign: TextAlign.center)],
+            const SizedBox(height: 22),
+            Row(children: [
+              Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(context, 'delete'), child: const Text('删除'))),
+              const SizedBox(width: 10),
+              Expanded(child: FilledButton(onPressed: () => Navigator.pop(context, 'edit'), child: const Text('编辑纪念日'))),
+            ]),
+          ]),
+        ));
+      },
+    );
+    if (!mounted) return;
+    if (action == 'edit') await _showAddSheet(item);
+    if (action == 'delete') await _delete(item);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('纪念日')),
-      floatingActionButton: FloatingActionButton.extended(
+      backgroundColor: const Color(0xFFF8F5F3),
+      floatingActionButton: FloatingActionButton(
         onPressed: _showAddSheet,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('添加'),
+        backgroundColor: const Color(0xFFE85D75),
+        foregroundColor: Colors.white,
+        shape: const CircleBorder(),
+        child: const Text('+', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w300)),
       ),
       body: FutureBuilder<List<Anniversary>>(
         future: _items,
@@ -107,12 +142,12 @@ class _AnniversaryPageState extends State<AnniversaryPage> {
               await _items;
             },
             child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 104),
+              padding: const EdgeInsets.fromLTRB(14, 18, 14, 104),
               itemCount: items.length,
               separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (context, index) => _AnniversaryCard(
                 item: items[index],
-                onEdit: () => _showAddSheet(items[index]),
+                onEdit: () => _showDetail(items[index]),
                 onDelete: () => _delete(items[index]),
               ),
             ),
@@ -142,12 +177,16 @@ class _AnniversaryCard extends StatelessWidget {
         : days > 0
         ? '$days 天后'
         : '${days.abs()} 天前';
-    return Container(
-      padding: const EdgeInsets.all(18),
+    return InkWell(
+      onTap: onEdit,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: item.isTop ? const Border(left: BorderSide(color: Color(0xFFECA8B4), width: 3)) : null,
+        boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 14, offset: Offset(0, 4))],
       ),
       child: Row(
         children: [
@@ -155,13 +194,10 @@ class _AnniversaryCard extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(17),
+              gradient: const LinearGradient(colors: [Color(0xFFF7F2ED), Color(0xFFF0E8DE)]),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              _iconFor(item.type),
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-            ),
+            child: Center(child: Text(_emojiFor(item.type), style: const TextStyle(fontSize: 25))),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -173,7 +209,7 @@ class _AnniversaryCard extends StatelessWidget {
                     Flexible(
                       child: Text(
                         item.name,
-                        style: const TextStyle(
+                        style: const TextStyle(color: Color(0xFF2D2729),
                           fontWeight: FontWeight.w700,
                           fontSize: 17,
                         ),
@@ -205,20 +241,7 @@ class _AnniversaryCard extends StatelessWidget {
           const SizedBox(width: 8),
           Semantics(
             label: '距离${item.name}$label',
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.secondaryContainer,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSecondaryContainer,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
+            child: Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFA05A67), fontWeight: FontWeight.w800, fontSize: 15)),
           ),
           PopupMenuButton<String>(
             tooltip: '纪念日操作',
@@ -230,15 +253,11 @@ class _AnniversaryCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 
-  static IconData _iconFor(String type) => switch (type) {
-    'together' => Icons.favorite_outline_rounded,
-    'birthday' => Icons.cake_outlined,
-    'valentine' => Icons.volunteer_activism_outlined,
-    'meet' => Icons.people_outline_rounded,
-    _ => Icons.event_outlined,
+  static String _emojiFor(String type) => switch (type) {
+    'together' => '💕', 'birthday' => '🎂', 'valentine' => '❤️', 'meet' => '🤝', _ => '📅',
   };
 
   static String _formatDate(DateTime value) {

@@ -83,7 +83,7 @@ class _QuizPageState extends State<QuizPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('默契测试')),
+    appBar: AppBar(title: const Text('默契问答')),
     body: SafeArea(
       child: Center(
         child: ConstrainedBox(
@@ -107,18 +107,49 @@ class _QuizPageState extends State<QuizPage> {
                   }
                   final data = snapshot.data!;
                   return ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
                     children: [
-                      Card(
-                        color: Theme.of(context).colorScheme.primaryContainer,
+                      const Column(
+                        children: [
+                          Text('💕', style: TextStyle(fontSize: 44)),
+                          SizedBox(height: 8),
+                          Text(
+                            '默契测试',
+                            style: TextStyle(
+                              fontSize: 23,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            '看看你们有多了解对方',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Color(0xff93898c),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 28),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: const [
+                            BoxShadow(color: Color(0x0d32242a), blurRadius: 12),
+                          ],
+                        ),
                         child: Padding(
                           padding: const EdgeInsets.all(20),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Text(
+                              const Text(
                                 '同一个问题，两个人分别回答',
-                                style: Theme.of(context).textTheme.titleLarge,
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                               const SizedBox(height: 8),
                               const Text('提交前看不到对方答案；双方都回答后才会一起揭晓。'),
@@ -146,14 +177,21 @@ class _QuizPageState extends State<QuizPage> {
                         ),
                       ],
                       const SizedBox(height: 22),
-                      Text(
+                      const Text(
                         '最近题目',
-                        style: Theme.of(context).textTheme.titleLarge,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 10),
                       if (data.entries.isEmpty)
-                        const Card(
-                          child: Padding(
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Padding(
                             padding: EdgeInsets.all(24),
                             child: Text('还没有测试记录，抽一道题开始吧。'),
                           ),

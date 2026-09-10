@@ -30,7 +30,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('本周双人进度'), findsOneWidget);
-    expect(find.text('更新今天的记录'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('保存今日记录'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('运动记录'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -50,7 +55,48 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('本月默契值 / 100'), findsOneWidget);
-    expect(find.text('一起回答'), findsOneWidget);
+    expect(find.text('次坦诚问答'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('fitness saves two inline workout rows and lifestyle record', (
+    tester,
+  ) async {
+    final repository = _FakeWellnessRepository();
+    await tester.pumpWidget(
+      MaterialApp(home: FitnessPage(repository: repository)),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('运动记录'),
+      220,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.scrollUntilVisible(
+      find.text('添加'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final addWorkout = find.ancestor(
+      of: find.text('添加'),
+      matching: find.byType(TextButton),
+    );
+    await Scrollable.ensureVisible(tester.element(addWorkout));
+    await tester.pumpAndSettle();
+    await tester.tap(addWorkout);
+    await tester.pump();
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(1), '45');
+    await tester.enterText(fields.at(4), '20');
+    await tester.enterText(fields.at(6), '9000');
+    final save = find.ancestor(of: find.text('保存今日记录'), matching: find.byType(FilledButton));
+    await Scrollable.ensureVisible(tester.element(save));
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    expect(repository.workoutSaveCalls, 1);
+    expect(repository.savedWorkouts.length, 2);
+    expect(repository.savedWorkouts.first.minutes, 45);
+    expect(repository.savedSteps, 9000);
     expect(tester.takeException(), isNull);
   });
 
@@ -72,8 +118,6 @@ void main() {
     expect(find.text('本周状态不错，继续一起动一动'), findsOneWidget);
     await tester.drag(find.byType(ListView), const Offset(0, -650));
     await tester.pumpAndSettle();
-    expect(find.text('我'), findsOneWidget);
-    expect(find.text('TA'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
@@ -81,6 +125,23 @@ void main() {
 class _FakeWellnessRepository extends WellnessRepository {
   _FakeWellnessRepository()
     : super(apiClient: ApiClient(tokenStore: TokenStore()));
+  int workoutSaveCalls = 0;
+  List<WorkoutEntry> savedWorkouts = const [];
+  int savedSteps = 0;
+
+  @override
+  Future<void> checkInWorkouts({
+    required List<WorkoutEntry> workouts,
+    required int steps,
+    required int water,
+    required double sleep,
+    required bool healthyMeal,
+    double? weight,
+  }) async {
+    workoutSaveCalls++;
+    savedWorkouts = workouts;
+    savedSteps = steps;
+  }
 
   @override
   Future<FitnessDashboard> dashboard() async => const FitnessDashboard(
@@ -111,6 +172,15 @@ class _FakeWellnessRepository extends WellnessRepository {
       water: 6,
       sleep: 7.5,
       healthyMeal: true,
+      workouts: [
+        WorkoutEntry(
+          id: 'morning',
+          type: 'walk',
+          startTime: '08:00',
+          minutes: 30,
+          calories: 150,
+        ),
+      ],
     ),
     partnerCheckedIn: true,
     challenges: [],

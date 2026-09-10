@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 abstract final class LoveSpaceColors {
-  static const rose = Color(0xFFBE185D);
-  static const pink = Color(0xFFEC4899);
-  static const blush = Color(0xFFFDF2F8);
-  static const ink = Color(0xFF2B1621);
-  static const mutedInk = Color(0xFF75616B);
-  static const border = Color(0xFFF1D8E4);
+  static const rose = Color(0xFFE85D75);
+  static const pink = Color(0xFFF08A9B);
+  static const blush = Color(0xFFF8F5F3);
+  static const ink = Color(0xFF2D2729);
+  static const mutedInk = Color(0xFF756A6D);
+  static const border = Color(0xFFEDE7E8);
 }
 
 abstract final class LoveSpaceTheme {
@@ -38,25 +38,27 @@ abstract final class LoveSpaceTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.surfaceContainerLowest,
       fontFamilyFallback: const [
+        'PingFang SC',
+        'Hiragino Sans GB',
         'Noto Sans SC',
         'Microsoft YaHei',
         'sans-serif',
       ],
       textTheme: TextTheme(
         headlineMedium: TextStyle(
-          fontSize: 30,
+          fontSize: 24,
           height: 1.2,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.5,
           color: scheme.onSurface,
         ),
         titleLarge: TextStyle(
-          fontSize: 22,
+          fontSize: 17,
           fontWeight: FontWeight.w700,
           color: scheme.onSurface,
         ),
         bodyLarge: TextStyle(
-          fontSize: 16,
+          fontSize: 14,
           height: 1.55,
           color: scheme.onSurface,
         ),
@@ -68,32 +70,62 @@ abstract final class LoveSpaceTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: scheme.surface,
+        fillColor: dark ? scheme.surface : const Color(0xFFF7F5F2),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
           vertical: 17,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: scheme.primary, width: 2),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size.fromHeight(44),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(999),
           ),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: scheme.surfaceContainerLowest,
+        foregroundColor: scheme.onSurface,
+        surfaceTintColor: Colors.transparent,
+        centerTitle: true,
+        elevation: 0,
+        titleTextStyle: TextStyle(
+          color: scheme.onSurface,
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        ),
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: LoveSpaceColors.rose,
+        foregroundColor: Colors.white,
+        shape: CircleBorder(),
       ),
       navigationBarTheme: NavigationBarThemeData(
         height: 72,
