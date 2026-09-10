@@ -89,12 +89,55 @@ abstract final class LoveSpaceTheme {
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(44),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(999),
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(Size.fromHeight(48)),
+          padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           ),
-          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+          ),
+          textStyle: const WidgetStatePropertyAll(
+            TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          animationDuration: const Duration(milliseconds: 140),
+          elevation: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.pressed) ? 0 : 1,
+          ),
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) {
+              return scheme.onSurface.withValues(alpha: .12);
+            }
+            return states.contains(WidgetState.pressed)
+                ? scheme.primary.withValues(alpha: .86)
+                : scheme.primary;
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            return states.contains(WidgetState.disabled)
+                ? scheme.onSurface.withValues(alpha: .38)
+                : scheme.onPrimary;
+          }),
+          overlayColor: WidgetStatePropertyAll(
+            Colors.white.withValues(alpha: .10),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
+          padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+          ),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+          ),
+          side: WidgetStatePropertyAll(
+            BorderSide(color: scheme.outlineVariant),
+          ),
+          overlayColor: WidgetStatePropertyAll(
+            scheme.primary.withValues(alpha: .08),
+          ),
+          animationDuration: const Duration(milliseconds: 140),
         ),
       ),
       appBarTheme: AppBarTheme(
@@ -112,20 +155,33 @@ abstract final class LoveSpaceTheme {
       cardTheme: CardThemeData(
         color: scheme.surface,
         surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        elevation: 1,
+        shadowColor: LoveSpaceColors.ink.withValues(alpha: dark ? .24 : .08),
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: .72)),
+        ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        elevation: 3,
+        modalElevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: .72)),
         ),
       ),
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: LoveSpaceColors.rose,
         foregroundColor: Colors.white,
-        shape: CircleBorder(),
+        elevation: 2,
+        focusElevation: 3,
+        hoverElevation: 3,
+        highlightElevation: 1,
+        splashColor: Colors.white.withValues(alpha: .14),
       ),
       navigationBarTheme: NavigationBarThemeData(
         height: 72,

@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lovespace_app/core/network/api_client.dart';
@@ -76,6 +79,42 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'mood selection stays stable when the initial restore finishes late',
+    (tester) async {
+      final repository = _DelayedMoodRepository();
+      await _phone(tester, MoodPage(repository: repository));
+
+      await tester.tap(find.byKey(const ValueKey('mood-choice-anxious')));
+      await tester.pump();
+      expect(
+        tester
+            .getSemantics(find.byKey(const ValueKey('mood-choice-anxious')))
+            .flagsCollection
+            .isSelected,
+        Tristate.isTrue,
+      );
+
+      repository.completeRestore('excited');
+      await tester.pumpAndSettle();
+
+      expect(
+        tester
+            .getSemantics(find.byKey(const ValueKey('mood-choice-anxious')))
+            .flagsCollection
+            .isSelected,
+        Tristate.isTrue,
+      );
+      expect(
+        tester
+            .getSemantics(find.byKey(const ValueKey('mood-choice-excited')))
+            .flagsCollection
+            .isSelected,
+        Tristate.isFalse,
+      );
+    },
+  );
 }
 
 Future<void> _phone(
@@ -91,9 +130,10 @@ Future<void> _phone(
     MaterialApp(
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.pink),
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: TextScaler.linear(textScale)),
+        data: MediaQuery.of(context).copyWith(
+          textScaler: TextScaler.linear(textScale),
+          disableAnimations: true,
+        ),
         child: child!,
       ),
       home: home,
@@ -160,4 +200,24 @@ class _ConnectionRepository extends CoreLoopRepository {
 
   @override
   Future<List<MoodEntry>> moodCalendar(DateTime month) async => const [];
+}
+
+class _DelayedMoodRepository extends _ConnectionRepository {
+  final _restore = Completer<MoodEntry?>();
+
+  void completeRestore(String type) {
+    _restore.complete(
+      MoodEntry(
+        id: 'my-mood',
+        type: type,
+        content: '稍后恢复的心情',
+        visibility: 'both',
+        date: DateTime(2026, 9, 10),
+        isMine: true,
+      ),
+    );
+  }
+
+  @override
+  Future<MoodEntry?> getMyMood() => _restore.future;
 }

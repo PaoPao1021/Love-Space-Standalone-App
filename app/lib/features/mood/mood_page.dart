@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/living_surface.dart';
 
 import '../core_loop/core_loop.dart';
 import '../core_loop/core_loop_repository.dart';
@@ -25,6 +26,7 @@ class _MoodPageState extends State<MoodPage> {
   };
   final _content = TextEditingController();
   String _selected = 'happy';
+  bool _selectionChangedByUser = false;
   bool _private = false;
   bool _saving = false;
   late DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
@@ -45,7 +47,9 @@ class _MoodPageState extends State<MoodPage> {
       final mood = await widget.repository.getMyMood();
       if (mood != null && mounted) {
         setState(() {
-          _selected = _moods.containsKey(mood.type) ? mood.type : _selected;
+          if (!_selectionChangedByUser && _moods.containsKey(mood.type)) {
+            _selected = mood.type;
+          }
           _content.text = mood.content;
           _private = mood.visibility == 'self';
         });
@@ -53,6 +57,14 @@ class _MoodPageState extends State<MoodPage> {
     } catch (_) {
       // The editor remains usable when today's saved mood cannot be fetched.
     }
+  }
+
+  void _selectMood(String mood) {
+    if (_selected == mood) return;
+    setState(() {
+      _selectionChangedByUser = true;
+      _selected = mood;
+    });
   }
 
   Future<void> _save() async {
@@ -106,83 +118,93 @@ class _MoodPageState extends State<MoodPage> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(0xffeca8b4),
-                      Color(0xfff6dde2),
-                      Color(0xffd4c5b0),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                padding: const EdgeInsets.all(4),
+              LivingSurface(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .94),
-                    borderRadius: BorderRadius.circular(21),
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xffeca8b4),
+                        Color(0xfff6dde2),
+                        Color(0xffd4c5b0),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(24),
                   ),
-                  padding: const EdgeInsets.all(22),
-                  child: Column(
-                    children: [
-                      const Text(
-                        '今天的心情是...',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1,
+                  padding: const EdgeInsets.all(4),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .94),
+                      borderRadius: BorderRadius.circular(21),
+                    ),
+                    padding: const EdgeInsets.all(22),
+                    child: Column(
+                      children: [
+                        const Text(
+                          '今天的心情是...',
+                          style: TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 18),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 10,
-                        alignment: WrapAlignment.center,
-                        children: _moods.entries.map((entry) {
-                          final v = entry.value;
-                          final active = _selected == entry.key;
-                          return InkWell(
-                            onTap: () => setState(() => _selected = entry.key),
-                            borderRadius: BorderRadius.circular(15),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              width: 68,
-                              padding: const EdgeInsets.symmetric(vertical: 9),
-                              decoration: BoxDecoration(
-                                color: active
-                                    ? Colors.white
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(15),
-                                boxShadow: active
-                                    ? const [
-                                        BoxShadow(
-                                          color: Color(0x182d2729),
-                                          blurRadius: 10,
+                        const SizedBox(height: 18),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 10,
+                          alignment: WrapAlignment.center,
+                          children: _moods.entries.map((entry) {
+                            final v = entry.value;
+                            final active = _selected == entry.key;
+                            return Semantics(
+                              key: ValueKey('mood-choice-${entry.key}'),
+                              button: true,
+                              selected: active,
+                              label: '${v.$2}心情',
+                              excludeSemantics: true,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () => _selectMood(entry.key),
+                                child: Container(
+                                  width: 68,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 9,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: active
+                                        ? Colors.white
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(15),
+                                    boxShadow: active
+                                        ? const [
+                                            BoxShadow(
+                                              color: Color(0x182d2729),
+                                              blurRadius: 10,
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        v.$1,
+                                        style: const TextStyle(fontSize: 27),
+                                      ),
+                                      Text(
+                                        v.$2,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xff70666a),
                                         ),
-                                      ]
-                                    : null,
-                              ),
-                              child: Column(
-                                children: [
-                                  Text(
-                                    v.$1,
-                                    style: const TextStyle(fontSize: 27),
+                                      ),
+                                    ],
                                   ),
-                                  Text(
-                                    v.$2,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: Color(0xff70666a),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

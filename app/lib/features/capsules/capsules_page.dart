@@ -184,11 +184,6 @@ class _CapsulesPageState extends State<CapsulesPage> {
         ),
       ),
     ),
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: _create,
-      icon: const Icon(Icons.edit_outlined),
-      label: const Text('写一封胶囊'),
-    ),
   );
 }
 

@@ -60,6 +60,8 @@ void main() {
 
     expect(find.text('写给明年的信'), findsOneWidget);
     expect(find.textContaining('开启'), findsWidgets);
+    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(find.byTooltip('写一封胶囊'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

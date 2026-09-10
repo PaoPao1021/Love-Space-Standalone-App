@@ -104,6 +104,7 @@ class _AnniversaryPageState extends State<AnniversaryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F5F3),
+      appBar: AppBar(title: const Text('纪念日')),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddSheet,
         backgroundColor: const Color(0xFFE85D75),
@@ -178,6 +179,7 @@ class _AnniversaryCard extends StatelessWidget {
         ? '$days 天后'
         : '${days.abs()} 天前';
     return InkWell(
+      key: ValueKey('anniversary-card-${item.id}'),
       onTap: onEdit,
       borderRadius: BorderRadius.circular(16),
       child: Container(

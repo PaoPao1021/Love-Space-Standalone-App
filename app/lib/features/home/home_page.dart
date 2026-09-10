@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../theme/living_surface.dart';
 import '../../core/auth/auth_models.dart';
 import '../anniversary/anniversary.dart';
 import '../anniversary/anniversary_repository.dart';
@@ -233,72 +234,78 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
           ),
-          _card(
-            path: '/anniversaries',
-            radius: 19,
-            padding: 18,
-            colors: const [Color(0xFF342D30), Color(0xFF211D1F)],
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 89),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _text(
-                          '${widget.user?.displayName ?? '我'} & ${_partner['nickName'] ?? 'TA'}',
-                          size: 11,
-                          color: const Color(0xFFEAA5B1),
-                        ),
-                        Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(
-                                text: '${days ?? '—'}',
-                                style: const TextStyle(
-                                  fontSize: 44,
-                                  height: 1.15,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -1.5,
-                                ),
-                              ),
-                              const TextSpan(
-                                text: ' 天',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Color(0xB3FFFFFF),
-                                ),
-                              ),
-                            ],
+          LivingSurface(
+            dark: true,
+            child: _card(
+              path: '/anniversaries',
+              radius: 19,
+              padding: 18,
+              colors: const [Color(0xFF342D30), Color(0xFF211D1F)],
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 89),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _text(
+                            '${widget.user?.displayName ?? '我'} & ${_partner['nickName'] ?? 'TA'}',
+                            size: 11,
+                            color: const Color(0xFFEAA5B1),
                           ),
-                          style: const TextStyle(color: Colors.white),
+                          Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: '${days ?? '—'}',
+                                  style: const TextStyle(
+                                    fontSize: 44,
+                                    height: 1.15,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -1.5,
+                                  ),
+                                ),
+                                const TextSpan(
+                                  text: ' 天',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xB3FFFFFF),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          _text(
+                            start == null
+                                ? '记住相爱的第一天'
+                                : '从 ${_date(start)} 开始，认真相爱',
+                            size: 11,
+                            color: const Color(0x7AFFFFFF),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0x29FFFFFF)),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        '♥',
+                        style: TextStyle(
+                          fontSize: 23,
+                          color: Color(0xFFED8294),
                         ),
-                        _text(
-                          start == null
-                              ? '记住相爱的第一天'
-                              : '从 ${_date(start)} 开始，认真相爱',
-                          size: 11,
-                          color: const Color(0x7AFFFFFF),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0x29FFFFFF)),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      '♥',
-                      style: TextStyle(fontSize: 23, color: Color(0xFFED8294)),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -812,7 +819,7 @@ class _HomePageState extends State<HomePage> {
     String? path,
     Color? color,
     List<Color>? colors,
-    double radius = 14,
+    double radius = 16,
     double padding = 16,
   }) => Container(
     decoration: BoxDecoration(
@@ -827,11 +834,18 @@ class _HomePageState extends State<HomePage> {
               colors: colors,
             ),
       borderRadius: BorderRadius.circular(radius),
+      border: Border.all(
+        color: Color.lerp(
+          color ?? colors?.first ?? Theme.of(context).colorScheme.surface,
+          Theme.of(context).colorScheme.outlineVariant,
+          .45,
+        )!,
+      ),
       boxShadow: const [
         BoxShadow(
-          color: Color(0x0C3C282D),
-          offset: Offset(0, 4),
-          blurRadius: 14,
+          color: Color(0x103C282D),
+          offset: Offset(0, 5),
+          blurRadius: 18,
         ),
       ],
     ),
@@ -850,11 +864,18 @@ class _HomePageState extends State<HomePage> {
   );
   Widget _track(int percent, Color color, Color background) => ClipRRect(
     borderRadius: BorderRadius.circular(99),
-    child: LinearProgressIndicator(
-      value: percent.clamp(0, 100) / 100,
-      minHeight: 3.5,
-      backgroundColor: background,
-      color: color,
+    child: TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: percent.clamp(0, 100) / 100),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) => LinearProgressIndicator(
+        value: value,
+        minHeight: 3.5,
+        backgroundColor: background,
+        color: color,
+      ),
     ),
   );
   Widget _avatar(String url) => Container(

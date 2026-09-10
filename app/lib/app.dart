@@ -113,28 +113,80 @@ class _LoveSpaceAppState extends State<LoveSpaceApp> {
         path: '/login',
         builder: (_, _) => LoginPage(controller: widget.authController),
       ),
-      GoRoute(
-        path: '/home',
-        builder: (_, _) => AppShell(
-          currentIndex: 0,
-          child: HomePage(
-            user: widget.authController.user,
-            anniversaryRepository: widget.anniversaryRepository,
-            coreLoopRepository: widget.coreLoopRepository,
-          ),
+      StatefulShellRoute(
+        builder: (_, _, shell) => AppShell(
+          currentIndex: shell.currentIndex,
+          onSelect: (index) => shell.goBranch(index),
+          child: shell,
         ),
+        navigatorContainerBuilder: (_, shell, children) =>
+            SwipeTabPages(shell: shell, children: children),
+        branches: [
+          StatefulShellBranch(
+            preload: true,
+            routes: [
+              GoRoute(
+                path: '/home',
+                builder: (_, _) => HomePage(
+                  user: widget.authController.user,
+                  anniversaryRepository: widget.anniversaryRepository,
+                  coreLoopRepository: widget.coreLoopRepository,
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            preload: true,
+            routes: [
+              GoRoute(
+                path: '/album',
+                builder: (_, _) =>
+                    AlbumPage(repository: widget.albumRepository),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            preload: true,
+            routes: [
+              GoRoute(
+                path: '/moments',
+                builder: (_, state) => MomentsPage(
+                  repository: widget.coreLoopRepository,
+                  cache: widget.accountCache,
+                  createOnOpen: state.uri.queryParameters['create'] == '1',
+                ),
+              ),
+              GoRoute(
+                path: '/moments/:momentId',
+                builder: (_, state) => MomentsPage(
+                  repository: widget.coreLoopRepository,
+                  cache: widget.accountCache,
+                  targetMomentId: state.pathParameters['momentId'],
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            preload: true,
+            routes: [
+              GoRoute(
+                path: '/profile',
+                builder: (_, _) => ProfilePage(
+                  user: widget.authController.user!,
+                  authController: widget.authController,
+                  repository: widget.coreLoopRepository,
+                  cache: widget.accountCache,
+                  pushClient: widget.pushClient,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       GoRoute(
         path: '/anniversaries',
         builder: (_, _) =>
             AnniversaryPage(repository: widget.anniversaryRepository),
-      ),
-      GoRoute(
-        path: '/album',
-        builder: (_, _) => AppShell(
-          currentIndex: 1,
-          child: AlbumPage(repository: widget.albumRepository),
-        ),
       ),
       GoRoute(
         path: '/album/:albumId',
@@ -143,28 +195,6 @@ class _LoveSpaceAppState extends State<LoveSpaceApp> {
           albumId: state.pathParameters['albumId']!,
           albumName: state.uri.queryParameters['name'] ?? '相册',
           uploadOnOpen: state.uri.queryParameters['upload'] == '1',
-        ),
-      ),
-      GoRoute(
-        path: '/moments',
-        builder: (_, state) => AppShell(
-          currentIndex: 2,
-          child: MomentsPage(
-            repository: widget.coreLoopRepository,
-            cache: widget.accountCache,
-            createOnOpen: state.uri.queryParameters['create'] == '1',
-          ),
-        ),
-      ),
-      GoRoute(
-        path: '/moments/:momentId',
-        builder: (_, state) => AppShell(
-          currentIndex: 2,
-          child: MomentsPage(
-            repository: widget.coreLoopRepository,
-            cache: widget.accountCache,
-            targetMomentId: state.pathParameters['momentId'],
-          ),
         ),
       ),
       GoRoute(
@@ -278,19 +308,6 @@ class _LoveSpaceAppState extends State<LoveSpaceApp> {
       GoRoute(
         path: '/timeline',
         builder: (_, _) => TimelinePage(repository: widget.coreLoopRepository),
-      ),
-      GoRoute(
-        path: '/profile',
-        builder: (_, _) => AppShell(
-          currentIndex: 3,
-          child: ProfilePage(
-            user: widget.authController.user!,
-            authController: widget.authController,
-            repository: widget.coreLoopRepository,
-            cache: widget.accountCache,
-            pushClient: widget.pushClient,
-          ),
-        ),
       ),
     ],
   );

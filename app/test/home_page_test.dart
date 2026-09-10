@@ -52,7 +52,14 @@ void main() {
         );
         addTearDown(router.dispose);
         await tester.pumpWidget(
-          MaterialApp.router(theme: LoveSpaceTheme.light, routerConfig: router),
+          MaterialApp.router(
+            theme: LoveSpaceTheme.light,
+            routerConfig: router,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(disableAnimations: true),
+              child: child!,
+            ),
+          ),
         );
         await tester.pumpAndSettle();
         expect(find.text('小鹿 & 小熊'), findsOneWidget);
@@ -61,8 +68,15 @@ void main() {
         expect(find.text('相册'), findsOneWidget);
         expect(find.text('一起'), findsNothing);
         expect(find.text('本周共同完成 60%'), findsOneWidget);
+        await tester.scrollUntilVisible(
+          find.text('60%'),
+          120,
+          scrollable: find.byType(Scrollable).first,
+        );
         expect(find.text('60%'), findsOneWidget);
         expect(tester.takeException(), isNull);
+        await tester.ensureVisible(find.text('进入问答'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('进入问答'));
         await tester.pumpAndSettle();
         expect(find.text('问答详情'), findsOneWidget);
